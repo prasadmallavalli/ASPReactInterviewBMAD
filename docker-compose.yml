@@ -7,7 +7,7 @@ services:
       ACCEPT_EULA: "Y"
       # Local dev-only placeholder, not a secret (solo portfolio project,
       # no shared/production environment) — see spec-1-1 Design Notes.
-      MSSQL_SA_PASSWORD: "***ROTATED-DEV-PASSWORD-REMOVED***"
+      MSSQL_SA_PASSWORD: "Dev_pKCxBtKDCPZ6PFQX_2026!"
       MSSQL_PID: "Developer"
     ports:
       - "1433:1433"

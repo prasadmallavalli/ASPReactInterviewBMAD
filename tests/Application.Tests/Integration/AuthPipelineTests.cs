@@ -39,7 +39,7 @@ public class AuthPipelineTests : IClassFixture<WebApplicationFactory<Program>>
     // token signed here validates against the TokenValidationParameters
     // Program.cs actually registers when the factory boots the app in the
     // Development environment.
-    private const string SigningKey = "***ROTATED-DEV-JWT-KEY-REMOVED***";
+    private const string SigningKey = "kicTMeke3/xJmBp0jQAzz+95w9e6iit/0WO8rHBTVUgB/tZfNdHg8SZAtd9R86kq";
     private const string Issuer = "ASPFullStackBMAD";
     private const string Audience = "ASPFullStackBMAD";
 
