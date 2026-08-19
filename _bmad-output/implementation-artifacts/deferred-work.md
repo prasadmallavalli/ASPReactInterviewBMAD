@@ -247,3 +247,17 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-protect-mutation-endpoints-scope-cors.md`
   summary: `ProductsController`'s `ProductWriteResult`→HTTP-status mapping (`CategoryNotFound`→400 on Create/Update, `NotFound`→404 on Update) has no controller/HTTP-level test — `ProductServiceTests.cs` only asserts what `ProductService` returns, never what the controller does with it, and no integration test hits `/api/products` with an invalid/missing category or product id.
   evidence: Verification-gap flagged the gap with a repo-wide grep confirming zero matches. Pre-existing since Story 1.3's mapping logic, untouched by this story's diff (only `[Authorize]` was added around the existing switch); surfaced incidentally by this review, not caused by 2.3. Demonstrated: swapping the status-code arms would leave every existing test green.
+
+## Deferred from: code review of spec-3-1-api-client-foundation-resilience-layer (2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-api-client-foundation-resilience-layer.md`
+  summary: `apiFetch` sets no request timeout/`AbortController` — a connection the server accepts but never responds to hangs indefinitely; retry logic never kicks in because `fetch` never rejects or resolves.
+  evidence: Blind-hunter flagged the gap. Real robustness gap, but outside the frozen I/O matrix's scope (network failure/5xx/4xx/2xx only, no "hung connection" row); no AC requires it. Worth adding once a real caller (3.2+) surfaces the need.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-api-client-foundation-resilience-layer.md`
+  summary: `apiFetch` has no shared JSON-body/`Content-Type` convenience — every future caller (Stories 3.2–3.5's Create/Update calls) must remember to set `Content-Type: application/json` manually per call, with nothing enforcing it.
+  evidence: Blind-hunter flagged the gap. Real ergonomic gap in the shared foundation, but designing the helper's exact shape is a small API decision this story's frozen Never boundary didn't scope in; better resolved when Story 3.3 (Create Product) becomes the first real caller.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-api-client-foundation-resilience-layer.md`
+  summary: Nothing documents that the client (port 5173) talking cross-origin HTTPS to the API (port 7197) requires the ASP.NET Core dev certificate to be trusted (`dotnet dev-certs trust`) — a newcomer running both for the first time will likely hit unexplained fetch failures with no guidance.
+  evidence: Blind-hunter flagged the onboarding gap. Real DX issue, cheap to fix with a README note, but no story's Tasks list currently owns writing client/API setup docs (the same gap already logged generically against Story 1.1).
