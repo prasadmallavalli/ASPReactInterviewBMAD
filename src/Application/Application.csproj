@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Only PasswordHasher<User> (Microsoft.AspNetCore.Identity namespace)
+         is used here (Story 2.1) — not the full Identity membership/store
+         system. Microsoft.Extensions.Identity.Core (the modern, lean home
+         for IPasswordHasher/PasswordHasher) is used instead of the legacy
+         Microsoft.AspNetCore.Identity 2.x compat package, which pulls in an
+         outdated, vulnerable System.Security.Cryptography.Xml transitive
+         dependency for XML-based key storage this project never uses. -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.11" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

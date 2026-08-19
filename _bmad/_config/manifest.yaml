@@ -1,0 +1,66 @@
+installation:
+  version: 6.11.0
+  installDate: 2026-08-18T07:44:48.296Z
+  lastUpdated: 2026-08-18T07:44:48.296Z
+modules:
+  - name: core
+    version: 6.11.0
+    installDate: 2026-08-18T07:44:47.943Z
+    lastUpdated: 2026-08-18T07:44:48.292Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmm
+    version: 6.11.0
+    installDate: 2026-08-18T07:44:47.992Z
+    lastUpdated: 2026-08-18T07:44:48.292Z
+    source: built-in
+    npmPackage: null
+    repoUrl: null
+  - name: bmb
+    version: v2.2.1
+    installDate: 2026-08-18T07:44:48.028Z
+    lastUpdated: 2026-08-18T07:44:48.293Z
+    source: external
+    npmPackage: bmad-builder
+    repoUrl: https://github.com/bmad-code-org/bmad-builder
+    channel: stable
+    sha: 38df19573f493c5025c7efce331debe8498832c1
+  - name: tea
+    version: v1.23.2
+    installDate: 2026-08-18T07:44:48.221Z
+    lastUpdated: 2026-08-18T07:44:48.294Z
+    source: external
+    npmPackage: bmad-method-test-architecture-enterprise
+    repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
+    channel: stable
+    sha: be4dc03242dd6b14b79fd62e5bbacf59d7572f34
+  - name: automator
+    version: main
+    installDate: 2026-08-18T07:44:48.250Z
+    lastUpdated: 2026-08-18T07:44:48.295Z
+    source: external
+    npmPackage: bmad-story-automator
+    repoUrl: https://github.com/bmad-code-org/bmad-automator
+    channel: next
+    sha: 0b94fd7bec8672f5bc384123f1f76e1daae1dc2b
+  - name: bmad-loop
+    version: v0.10.0
+    installDate: 2026-08-18T07:44:48.255Z
+    lastUpdated: 2026-08-18T07:44:48.295Z
+    source: external
+    npmPackage: null
+    repoUrl: https://github.com/bmad-code-org/bmad-loop
+    channel: stable
+    sha: 8d33e927d42158e034ba28043d1ce4c9ee237716
+  - name: cis
+    version: v0.3.1
+    installDate: 2026-08-18T07:44:48.262Z
+    lastUpdated: 2026-08-18T07:44:48.296Z
+    source: external
+    npmPackage: bmad-creative-intelligence-suite
+    repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
+    channel: stable
+    sha: 0e4ff9233a792db1a1cd00f22a482f338168cdc3
+ides:
+  - claude-code
