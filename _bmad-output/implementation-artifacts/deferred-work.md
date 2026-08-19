@@ -307,3 +307,13 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
   summary: `LoginForm`'s error message only clears when the next submit fires (`setError(null)` at the top of `handleSubmit`) — it stays on screen, unchanged, while the user edits the email/password fields to retry.
   evidence: Blind-hunter flagged the gap. Minor UX polish, not required by any AC; cheap to add (clear on field change) if it proves to matter in practice.
+
+## Deferred from: code review of spec-3-3-create-product (2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-create-product.md`
+  summary: `CreateProductForm`'s error message only clears on the next submit, not as the user edits fields afterward — same class of gap already deferred against `LoginForm`.
+  evidence: Blind-hunter flagged the gap. Minor UX polish, not required by any AC.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-create-product.md`
+  summary: No focus management on submit failure, no `aria-invalid`/`aria-describedby`/`aria-busy` linking inputs to the error state, and no `:focus-visible`/invalid-state CSS — real accessibility gaps.
+  evidence: Blind-hunter flagged the gaps. Mirrors the same class of gap already deferred against `ProductList` and `LoginForm`; no AC requires WCAG-level coverage for this MVP form.

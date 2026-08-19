@@ -25,3 +25,14 @@ export interface UserDto {
   id: number;
   email: string;
 }
+
+/**
+ * Client-side mirror of `src/Application/DTOs/CategoryDto.cs`. System.Text.Json's
+ * default camelCasing turns `Id`/`Name` into `id`/`name` on the wire -- same
+ * convention as `ProductDto` above. Used by `CreateProductForm` to populate
+ * the Category dropdown from `GET /api/categories`.
+ */
+export interface CategoryDto {
+  id: number;
+  name: string;
+}
