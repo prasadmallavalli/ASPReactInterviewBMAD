@@ -13,3 +13,15 @@ export interface ProductDto {
   price: number;
   categoryId: number;
 }
+
+/**
+ * Client-side mirror of `src/Application/DTOs/UserDto.cs`. System.Text.Json's
+ * default camelCasing turns `Id`/`Email` into `id`/`email` on the wire --
+ * same convention as `ProductDto` above. Deliberately just `{ id, email }`:
+ * the API never returns a password/hash, and the client never stores the raw
+ * JWT (AD-5) -- the httpOnly `access_token` cookie is the sole session store.
+ */
+export interface UserDto {
+  id: number;
+  email: string;
+}

@@ -279,3 +279,31 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-product-list-view.md`
   summary: The product table has no pagination, sorting, filtering/search, or locale-aware currency formatting (`Intl.NumberFormat`) — a hardcoded `$${price.toFixed(2)}` and an unbounded row list.
   evidence: Blind-hunter flagged the gaps. Explicitly out of this story's AC ("fetched and displayed"); mirrors the already-deferred backend gaps (no `OrderBy`, no category filter endpoint) — worth revisiting together if the catalog ever needs to scale past a demo-sized dataset.
+
+## Split from: Story 3.3 intent (2026-08-19)
+
+- source_spec: none
+  summary: Story 3.3 (Create Product) itself — the create form, its validation/submit flow, and the product-list refresh on success.
+  evidence: User asked to fold "add a minimal login form" into the Story 3.3 intent so it's demoable end-to-end, but a login form and Create Product are two independently shippable deliverables (SCOPE STANDARD multi-goal check). User chose to split: the login form ships first as its own spec (`spec-epic-3-prereq-login-form.md`), Create Product follows as its own spec afterward.
+
+## Deferred from: code review of spec-epic-3-prereq-login-form (2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
+  summary: Nothing re-checks the session after the initial mount-time `/api/auth/me` call — if the `access_token` cookie expires while the user is actively using the app, `AuthContext`'s `status` stays `'authenticated'` and the UI keeps rendering `ProductList` until a manual page reload, rather than detecting the 401 on a later mutation and re-prompting for login.
+  evidence: Blind-hunter flagged the gap. Outside the frozen I/O matrix's scope (mount-check and login flow only, no "session expires mid-use" row); worth revisiting once Stories 3.3–3.5's mutation calls exist to actually observe a stale-session 401.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
+  summary: `LoginForm`'s error state has no focus management (focus isn't moved to the alert or back to a field) and its inputs have no `aria-invalid`/`aria-describedby` linking them to the error message — real accessibility gaps.
+  evidence: Blind-hunter flagged the gaps. Mirrors the same class of gap already deferred against Story 3.2's `ProductList`; no AC requires WCAG-level coverage for this MVP form.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
+  summary: Once authenticated, no UI anywhere displays who's logged in (`UserDto.email` is fetched into context but never rendered) — no "signed in as…" indicator or way to tell which account is active.
+  evidence: Blind-hunter flagged the gap. Real UX gap, but no AC requires it for this minimal prerequisite; natural fit for whichever story first adds persistent app chrome (header/nav).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
+  summary: `AuthContext.tsx`'s `describeAuthError` is a line-for-line duplicate of `ProductList.tsx`'s `describeError` (same network-error message, same title/detail join logic, same status fallback) — the two can silently drift if one is fixed without the other.
+  evidence: Verification-gap flagged the duplication. Real DRY concern, but extracting a shared helper means touching Story 3.2's already-reviewed `ProductList.tsx` as a side effect and deciding where the shared module lives — a small design decision, not a same-file patch.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-prereq-login-form.md`
+  summary: `LoginForm`'s error message only clears when the next submit fires (`setError(null)` at the top of `handleSubmit`) — it stays on screen, unchanged, while the user edits the email/password fields to retry.
+  evidence: Blind-hunter flagged the gap. Minor UX polish, not required by any AC; cheap to add (clear on field change) if it proves to matter in practice.
