@@ -1,0 +1,41 @@
+.product-list {
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  text-align: left;
+}
+
+.product-list h1 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.product-table th,
+.product-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #333;
+  text-align: left;
+}
+
+.product-table th {
+  font-weight: 600;
+}
+
+.product-list-error {
+  color: #c0392b;
+}
+
+.product-list-error button {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.product-list-empty {
+  opacity: 0.75;
+}

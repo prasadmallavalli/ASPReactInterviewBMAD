@@ -261,3 +261,21 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-api-client-foundation-resilience-layer.md`
   summary: Nothing documents that the client (port 5173) talking cross-origin HTTPS to the API (port 7197) requires the ASP.NET Core dev certificate to be trusted (`dotnet dev-certs trust`) — a newcomer running both for the first time will likely hit unexplained fetch failures with no guidance.
   evidence: Blind-hunter flagged the onboarding gap. Real DX issue, cheap to fix with a README note, but no story's Tasks list currently owns writing client/API setup docs (the same gap already logged generically against Story 1.1).
+
+## Deferred from: code review of spec-3-2-product-list-view (2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-product-list-view.md`
+  summary: `ProductList`'s component-level fix (ignoring stale/unmounted-state updates) stops the *state* from updating after unmount or a superseded retry, but the underlying HTTP request itself is never cancelled at the network level — `apiFetch` accepts no `AbortSignal` wiring from callers, and its own retry loop would treat a genuine `AbortError` as a network failure and retry it anyway.
+  evidence: Surfaced while patching the unmount/race-condition findings from blind-hunter and edge-case-hunter. Real gap, but fixing it properly means extending Story 3.1's `apiFetch` contract (cancellation-aware retries) — a design decision for that shared foundation, not a one-component patch.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-product-list-view.md`
+  summary: `ProductList`'s loading/error/success containers use plain `<div>`s with no `<main>` landmark, the `<table>` has no `<caption>`, and the loading container has no explicit `aria-busy` — real but minor accessibility gaps.
+  evidence: Blind-hunter flagged the gaps. No AC requires WCAG-level landmark/caption coverage for this MVP list view; cheap to add later alongside a broader a11y pass.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-product-list-view.md`
+  summary: No React error boundary wraps `ProductList` in `App.tsx` — an unexpected render-time exception anywhere in the tree crashes the whole app with no fallback UI, instead of a contained error message.
+  evidence: Blind-hunter flagged the gap. Real resilience gap, but adding an error boundary is an app-wide architectural decision (where does it live, what does its fallback look like) beyond this single component's scope.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-product-list-view.md`
+  summary: The product table has no pagination, sorting, filtering/search, or locale-aware currency formatting (`Intl.NumberFormat`) — a hardcoded `$${price.toFixed(2)}` and an unbounded row list.
+  evidence: Blind-hunter flagged the gaps. Explicitly out of this story's AC ("fetched and displayed"); mirrors the already-deferred backend gaps (no `OrderBy`, no category filter endpoint) — worth revisiting together if the catalog ever needs to scale past a demo-sized dataset.
