@@ -223,3 +223,13 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-user-login-jwt-via-httponly-cookie.md`
   summary: `AuthController.Me()` returns identity built purely from JWT claims with no DB lookup, so a user deleted or changed after token issuance still appears valid to `/me` until the token's own expiry.
   evidence: Edge-case-hunter flagged the gap. Inherent to the claims-only design chosen for this minimal verification endpoint (see spec's Design Notes); revisiting would mean either a DB round-trip on every authenticated request or a revocation mechanism (already deferred above), neither required by this story's AC.
+
+## Post-implementation ops on spec-2-3-protect-mutation-endpoints-scope-cors (2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-protect-mutation-endpoints-scope-cors.md`
+  summary: Manual end-to-end verification (register → login → `/me` → mutation without CSRF → mutation with correct `X-CSRF-TOKEN` → unauthenticated mutation) was independently re-run against a locally launched Api process after the dev DB password/JWT signing key rotation below, confirming the 401/400/201/401 sequence still holds. All test data (user row, category row) was deleted from the DB afterward and the Api process was stopped; DB confirmed empty of residue.
+  evidence: Re-validation requested by the user post-rotation, not a new finding — confirms the rotated credentials didn't regress the auth/CSRF/CORS behavior this spec implemented.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-solution-scaffold-domain-model.md`
+  summary: Git history was rewritten with `git-filter-repo` to scrub the original (pre-rotation) SQL Server `sa` password and JWT signing key from every commit and blob, then force-pushed to `origin/main`. All three commit SHAs that existed at that point changed (`6afb0d9`→`f1bc57f`, `147abd4`→`0242d85`, `90d16ae`→`48c9b34`); a local backup bundle was taken before the rewrite and deleted once the push was verified.
+  evidence: User-requested cleanup after rotating the credential this ledger already flagged as committed-by-design in the Story 1.5 entry above. The rotated values remain intentionally committed in `docker-compose.yml` per spec-1-1's Design Notes — only the stale pre-rotation values were removed from history. `appsettings.Development.json` itself was separately untracked going forward (added to `.gitignore`) in the same effort.
