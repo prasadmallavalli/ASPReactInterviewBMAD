@@ -2,7 +2,7 @@
 title: 'Protect Mutation Endpoints & Scope CORS'
 type: 'feature'
 created: '2026-08-19'
-status: 'in-progress'
+status: 'done'
 review_loop_iteration: 0
 baseline_commit: 'NO_VCS'
 context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md']
@@ -62,13 +62,13 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.m
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/Api/Controllers/CategoriesController.cs` -- add `[Authorize]` to `Create`/`Update`/`Delete` -- gate mutations
-- [ ] `src/Api/Controllers/ProductsController.cs` -- add `[Authorize]` to `Create`/`Update`/`Delete` -- gate mutations
-- [ ] `src/Api/Controllers/AuthController.cs` -- inject `IAntiforgery`; add `[IgnoreAntiforgeryToken]` to `Register`/`Login`; call `GetAndStoreTokens(HttpContext)` in `Login` post-cookie-set -- CSRF token issuance + auth-endpoint exemption
-- [ ] `src/Api/Program.cs` -- `AddCors` (named policy, `WithOrigins(corsOrigin)`, `AllowCredentials()`, `AllowAnyHeader()`, `AllowAnyMethod()`); `AddAntiforgery` (`HeaderName = "X-CSRF-TOKEN"`, `Cookie.Name = "XSRF-TOKEN"`, `Cookie.HttpOnly = false`, `Cookie.SecurePolicy = Always`, `Cookie.SameSite = Strict`); `AddControllers(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()))`; fail-fast read of `Cors:FrontendOrigin`; `app.UseCors(...)` between `UseHttpsRedirection()` and `UseAuthentication()` -- pipeline wiring
-- [ ] `src/Api/appsettings.Development.json` -- add `Cors:FrontendOrigin` = `http://localhost:5173` -- config
-- [ ] `tests/Application.Tests/Integration/MutationEndpointsAuthTests.cs` -- unauthenticated POST/PUT/DELETE to `/api/products` and `/api/categories` → 401; unauthenticated GET to both → 200 -- automated coverage, no DB needed
-- [ ] `tests/Application.Tests/Integration/CorsPolicyTests.cs` -- request with the configured frontend `Origin` header → `Access-Control-Allow-Origin` present and matching; request with a disallowed `Origin` → header absent -- automated coverage, no DB needed
+- [x] `src/Api/Controllers/CategoriesController.cs` -- add `[Authorize]` to `Create`/`Update`/`Delete` -- gate mutations
+- [x] `src/Api/Controllers/ProductsController.cs` -- add `[Authorize]` to `Create`/`Update`/`Delete` -- gate mutations
+- [x] `src/Api/Controllers/AuthController.cs` -- inject `IAntiforgery`; add `[IgnoreAntiforgeryToken]` to `Register`/`Login`; issue the CSRF cookie via `GetAndStoreTokens(HttpContext)` -- CSRF token issuance + auth-endpoint exemption (see Spec Change Log: issuance moved from `Login` to `Me()`)
+- [x] `src/Api/Program.cs` -- `AddCors` (named policy, `WithOrigins(corsOrigin)`, `AllowCredentials()`, `AllowAnyHeader()`, `AllowAnyMethod()`); `AddAntiforgery` (`HeaderName = "X-CSRF-TOKEN"`, `Cookie.SecurePolicy = Always`, `Cookie.SameSite = Strict`); `AddControllers(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()))`; fail-fast read of `Cors:FrontendOrigin`; `app.UseCors(...)` between `UseHttpsRedirection()` and `UseAuthentication()` -- pipeline wiring
+- [x] `src/Api/appsettings.Development.json` -- add `Cors:FrontendOrigin` = `http://localhost:5173` -- config
+- [x] `tests/Application.Tests/Integration/MutationEndpointsAuthTests.cs` -- unauthenticated POST/PUT/DELETE to `/api/products` and `/api/categories` → 401; unauthenticated GET to both → 200 -- automated coverage, no DB needed
+- [x] `tests/Application.Tests/Integration/CorsPolicyTests.cs` -- request with the configured frontend `Origin` header → `Access-Control-Allow-Origin` present and matching; request with a disallowed `Origin` → header absent -- automated coverage, no DB needed
 
 **Acceptance Criteria:**
 - Given an unauthenticated request, when it hits a Create/Update/Delete endpoint from Epic 1, then a 401 is returned
@@ -77,6 +77,8 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.m
 - Given Read (GET) endpoints, when accessed without authentication, then they remain publicly accessible per FR4's mutation-only scope
 
 ## Spec Change Log
+
+- **CSRF token issuance moved from `Login` to `Me()`.** The frozen Intent/Boundaries text calls for `Login` to call `IAntiforgery.GetAndStoreTokens(HttpContext)` right after setting the `access_token` cookie. Verified empirically (real HTTPS run) that this doesn't work: `DefaultAntiforgery` unconditionally binds every issued token pair to `HttpContext.User`'s identity *at issuance time*, and the request running `Login` is itself unauthenticated (no `access_token` cookie on the way in — the same reason `[IgnoreAntiforgeryToken]` is needed on `Login` at all). A token minted mid-`Login` is bound to "no identity," while every later mutation request *is* authenticated, so every subsequent mutation failed CSRF validation with "the provided antiforgery token was meant for a different claims-based user than the current user," regardless of the header sent. Fix: `GetAndStoreTokens(HttpContext)` now runs in the pre-existing `[Authorize]`-protected `GET /api/auth/me` instead, which only ever executes once `HttpContext.User` is the same identity every later mutation presents. Also dropped the originally-listed `AddAntiforgery` options `Cookie.Name = "XSRF-TOKEN"` / `Cookie.HttpOnly = false`: those would rename the framework's own internal "cookie token" cookie and expose it to JS, which breaks the token pair (the cookie-token and request-token halves are cryptographically related but not interchangeable — same-name/JS-readable produces "the cookie token and the request token were swapped"). The framework-managed antiforgery cookie keeps its default name and stays `HttpOnly`; a distinct, JS-readable `XSRF-TOKEN` cookie holding `tokens.RequestToken` is set explicitly in `Me()` instead, matching what `AutoValidateAntiforgeryTokenAttribute` expects in the `X-CSRF-TOKEN` header. Net effect for the frontend: it must call `GET /api/auth/me` once after login (before its first mutation) to receive the `XSRF-TOKEN` cookie — a one-call addition to Epic 3's client bootstrap, not a scope change to this story's endpoints. Behavior against the I/O matrix is unchanged (verified manually end-to-end: register → login → `/me` → mutation without header → 400 → mutation with header → 200/201/204) and both new automated test files pass unmodified from the spec's Code Map.
 
 ## Design Notes
 
@@ -98,3 +100,58 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.m
 - Log in, then POST/PUT/DELETE to `/api/products`/`/api/categories` with the `access_token` cookie but no `X-CSRF-TOKEN` header — confirm 400
 - Repeat with the correct `X-CSRF-TOKEN` header (from the `XSRF-TOKEN` cookie set at login) — confirm the mutation succeeds as it did before this story
 - Confirm `GET /api/products`/`/api/categories` still work with zero cookies
+
+## Suggested Review Order
+
+**CSRF token lifecycle (the story's core design decision)**
+
+- Why issuance moved from `Login` to `Me()` — identity-binding pitfall and the fix, explained in full.
+  [`AuthController.cs:128`](../../src/Api/Controllers/AuthController.cs#L128)
+
+- `Me()` mints and sets the JS-readable `XSRF-TOKEN` cookie once the caller is authenticated.
+  [`AuthController.cs:161`](../../src/Api/Controllers/AuthController.cs#L161)
+
+- `Login`/`Register` opt out of global CSRF validation — no session exists yet to protect.
+  [`AuthController.cs:90`](../../src/Api/Controllers/AuthController.cs#L90)
+
+- `RegisterLoginMeThenMutate_NoCsrfHeader400_CorrectCsrfHeaderSucceeds` — the regression test for the identity-binding fix.
+  [`CsrfProtectionTests.cs:59`](../../tests/Application.Tests/Integration/CsrfProtectionTests.cs#L59)
+
+**Pipeline wiring (Program.cs)**
+
+- `AddMvcCore().AddViews()` — the non-obvious dependency `AutoValidateAntiforgeryTokenAttribute` needs to resolve from DI.
+  [`Program.cs:56`](../../src/Api/Program.cs#L56)
+
+- Global CSRF filter applied via `AddControllers` options, not per-action.
+  [`Program.cs:37`](../../src/Api/Program.cs#L37)
+
+- `AddAntiforgery` — deliberately does not rename/expose the framework's own cookie token.
+  [`Program.cs:223`](../../src/Api/Program.cs#L223)
+
+- `Cors:FrontendOrigin` fail-fast read, mirroring the existing `Jwt:*`/connection-string guard pattern.
+  [`Program.cs:186`](../../src/Api/Program.cs#L186)
+
+- `AddCors` policy — `WithOrigins` + `AllowCredentials()`, never `AllowAnyOrigin()`.
+  [`Program.cs:194`](../../src/Api/Program.cs#L194)
+
+- `UseCors` placement between `UseHttpsRedirection()` and `UseAuthentication()` — required order.
+  [`Program.cs:262`](../../src/Api/Program.cs#L262)
+
+**Mutation gating**
+
+- `[Authorize]` added to Create/Update/Delete; GET stays public.
+  [`CategoriesController.cs:45`](../../src/Api/Controllers/CategoriesController.cs#L45)
+
+- Same pattern on the Product side.
+  [`ProductsController.cs:47`](../../src/Api/Controllers/ProductsController.cs#L47)
+
+**Peripherals**
+
+- `Cors:FrontendOrigin` config value.
+  [`appsettings.Development.json:17`](../../src/Api/appsettings.Development.json#L17)
+
+- 401-on-unauthenticated-mutation / 200-on-unauthenticated-GET coverage.
+  [`MutationEndpointsAuthTests.cs`](../../tests/Application.Tests/Integration/MutationEndpointsAuthTests.cs)
+
+- Allowed vs. disallowed `Origin` header coverage.
+  [`CorsPolicyTests.cs`](../../tests/Application.Tests/Integration/CorsPolicyTests.cs)
