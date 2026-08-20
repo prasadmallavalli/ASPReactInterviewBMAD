@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-20-2026 13:20
+last_updated: 08-20-2026 14:15
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -51,13 +51,13 @@ development_status:
   2-3-protect-mutation-endpoints-scope-cors: review
   epic-2-retrospective: optional
 
-  epic-3: in-progress
-  3-1-api-client-foundation-resilience-layer: review
-  3-2-product-list-view: review
-  3-3-create-product: review
-  3-4-edit-product: review
-  3-5-delete-product: review
-  epic-3-retrospective: optional
+  epic-3: done
+  3-1-api-client-foundation-resilience-layer: done
+  3-2-product-list-view: done
+  3-3-create-product: done
+  3-4-edit-product: done
+  3-5-delete-product: done
+  epic-3-retrospective: done
 
   epic-4: backlog
   4-1-architecture-decision-records: backlog
@@ -79,3 +79,81 @@ development_status:
   6-2-3-minute-cold-capstone-walkthrough: backlog
   6-3-30-minute-deep-dive-anticipated-follow-ups: backlog
   epic-6-retrospective: optional
+action_items:
+  - id: "epic-3-retro-item-1-add-cancel-button-to-productform-s-categ"
+    epic: 3
+    action: "Add Cancel button to ProductForm's categories-error and empty-categories
+      branches when mode is edit (Finding C)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-2-add-a-test-exercising-the-real-login-to"
+    epic: 3
+    action: "Add a test exercising the real login-to-app transition through App/AuthContext/LoginForm
+      composed together, not mocked (Finding D)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-3-add-a-stale-response-guard-test-starting"
+    epic: 3
+    action: "Add a stale-response guard test starting from mode=create switching to
+      mode=edit mid-flight (Finding E)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-4-extend-productform-price-validation-to-r"
+    epic: 3
+    action: "Extend ProductForm price validation to reject values above 1,000,000,
+      matching the native max attribute (Finding H)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-5-delete-four-unused-vite-scaffold-files-a"
+    epic: 3
+    action: "Delete four unused Vite-scaffold files: App.css, hero.png, react.svg,
+      vite.svg (Finding G)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-6-design-a-shared-per-product-busy-signal"
+    epic: 3
+    action: "Design a shared per-product busy signal so ProductList Edit/Delete and
+      ProductForm submit state are mutually aware for the same row (Finding A)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-7-reconsider-the-refreshkey-remount-mechan"
+    epic: 3
+    action: "Reconsider the refreshKey-remount mechanism's interaction with an in-flight
+      delete on a different row (Finding B)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-8-add-a-requestidref-style-generation-coun"
+    epic: 3
+    action: "Add a requestIdRef-style generation-counter guard to AuthContext's mount
+      effect, matching ProductList's pattern (Finding F)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-9-extract-a-shared-describeapierror-helper"
+    epic: 3
+    action: "Extract a shared describeApiError helper, now duplicated 3 ways across
+      ProductList, ProductForm, AuthContext (Finding I)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-10-add-focus-scrollintoview-when-entering-e"
+    epic: 3
+    action: "Add focus/scrollIntoView when entering edit mode on a long product list
+      (Finding K)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
+  - id: "epic-3-retro-item-11-update-epics-md-to-formally-record-the-l"
+    epic: 3
+    action: "Update epics.md to formally record the login-form prerequisite as delivered
+      Epic 3 scope (Finding L)"
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
