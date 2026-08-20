@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-20-2026 15:45
+last_updated: 08-20-2026 16:20
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -62,7 +62,7 @@ development_status:
   epic-4: in-progress
   4-1-architecture-decision-records: review
   4-2-design-doc-scaling-path-for-a-non-trivial-feature: review
-  4-3-code-review-checklist-applied-to-real-commits: backlog
+  4-3-code-review-checklist-applied-to-real-commits: review
   4-4-mentoring-onboarding-note: backlog
   epic-4-retrospective: optional
 
