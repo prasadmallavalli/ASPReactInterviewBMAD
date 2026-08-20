@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '../api/client';
+import type { ApiResult } from '../api/client';
 import type { ProductDto } from '../api/types';
 import ProductList from './ProductList';
 
@@ -198,5 +199,222 @@ describe('ProductList', () => {
 
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit).toHaveBeenCalledWith(products[1]);
+  });
+
+  // Story 3.5 I/O matrix: Delete clicked + confirmed -> DELETE fires via
+  // apiFetch, and on 204 the list is refreshed via fetchProducts (item disappears).
+  describe('delete', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('issues DELETE and refetches the list when Delete is clicked and confirmed', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [makeProduct({ id: 1, name: 'Widget' })];
+
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return Promise.resolve({ ok: true, status: 204, data: undefined });
+        }
+        return Promise.resolve({ ok: true, status: 200, data: products });
+      });
+
+      render(<ProductList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      // Once DELETE resolves, the refetch reports an empty catalog.
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return Promise.resolve({ ok: true, status: 204, data: undefined });
+        }
+        return Promise.resolve({ ok: true, status: 200, data: [] });
+      });
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+
+      expect(window.confirm).toHaveBeenCalledWith('Delete "Widget"?');
+      expect(mockedApiFetch).toHaveBeenCalledWith('/api/products/1', { method: 'DELETE' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/no products/i)).toBeInTheDocument();
+      });
+    });
+
+    // I/O matrix: Delete clicked + cancelled -> no API call, item remains.
+    it('issues no API call and leaves the item in place when Delete is clicked and cancelled', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const products = [makeProduct({ id: 1, name: 'Widget' })];
+      mockedApiFetch.mockResolvedValue({ ok: true, status: 200, data: products });
+
+      render(<ProductList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      const callsBeforeDelete = mockedApiFetch.mock.calls.length;
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockedApiFetch.mock.calls.length).toBe(callsBeforeDelete);
+      expect(screen.getByText('Widget')).toBeInTheDocument();
+    });
+
+    // I/O matrix: delete in flight -> that row's Delete button disabled
+    // (loading); other rows' Edit/Delete stay interactive (concurrent
+    // deletes of different products are independent).
+    it('disables only the deleting row\'s Delete button while its request is in flight, leaving other rows interactive', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [
+        makeProduct({ id: 1, name: 'Widget' }),
+        makeProduct({ id: 2, name: 'Gadget' }),
+      ];
+
+      let resolveDelete: (value: ApiResult<unknown>) => void = () => {};
+      // Tracks whether the pending DELETE has been resolved yet, so the mock's
+      // GET branch reflects real server behavior: the deleted product is only
+      // absent from the list *after* the delete has actually completed.
+      let deleted = false;
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return new Promise<ApiResult<unknown>>((resolve) => {
+            resolveDelete = (value) => {
+              deleted = true;
+              resolve(value);
+            };
+          });
+        }
+        const data = deleted ? products.filter((product) => product.id !== 1) : products;
+        return Promise.resolve({ ok: true, status: 200, data });
+      });
+
+      render(<ProductList onEdit={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i });
+      await user.click(deleteButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /deleting/i })).toBeDisabled();
+      });
+
+      // Other row's Edit/Delete remain interactive.
+      const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+      expect(editButtons[1]).not.toBeDisabled();
+      expect(deleteButtons[1]).not.toBeDisabled();
+
+      resolveDelete({ ok: true, status: 204, data: undefined });
+
+      // The deleted row (and its disabled "Deleting…" button) disappears
+      // entirely once the post-delete refetch resolves -- deletingIds is
+      // deliberately never cleared on the success path, so the only way this
+      // button goes away is via the row itself being removed from the list.
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /deleting/i })).not.toBeInTheDocument();
+      });
+      expect(screen.queryByText('Widget')).not.toBeInTheDocument();
+      expect(screen.getByText('Gadget')).toBeInTheDocument();
+    });
+
+    // Review fix: a second click on the *same* row's Delete button before
+    // the first DELETE resolves (and before React has re-rendered the
+    // now-disabled button) must not fire a second request -- this is the
+    // exact race the deletingIdsRef re-entrancy guard exists to close.
+    it('fires only one DELETE for a row double-clicked before its request resolves', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [makeProduct({ id: 1, name: 'Widget' })];
+
+      let resolveDelete: (value: ApiResult<unknown>) => void = () => {};
+      let deleted = false;
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return new Promise<ApiResult<unknown>>((resolve) => {
+            resolveDelete = (value) => {
+              deleted = true;
+              resolve(value);
+            };
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, data: deleted ? [] : products });
+      });
+
+      render(<ProductList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
+      // Two clicks dispatched before the first DELETE resolves (and thus
+      // before React re-renders the button as disabled) -- both go through
+      // the same synchronous handler, so the ref-backed guard (not just the
+      // `disabled` attribute) is what has to reject the second one.
+      await user.click(deleteButton);
+      await user.click(deleteButton);
+
+      const deleteCalls = mockedApiFetch.mock.calls.filter(
+        ([path, init]) =>
+          path === '/api/products/1' &&
+          ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase() === 'DELETE',
+      );
+      expect(deleteCalls).toHaveLength(1);
+      expect(window.confirm).toHaveBeenCalledTimes(1);
+
+      resolveDelete({ ok: true, status: 204, data: undefined });
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /deleting/i })).not.toBeInTheDocument();
+      });
+    });
+
+    // I/O matrix: delete fails (404 or ApiFailure) -> visible error message,
+    // item remains in the list.
+    it('shows a visible delete error and keeps the item in the list when DELETE fails', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [makeProduct({ id: 1, name: 'Widget' })];
+
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            problem: { title: 'Not found' },
+            networkError: false,
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, data: products });
+      });
+
+      render(<ProductList />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Not found');
+      });
+      // Item stays in the list -- the delete failure does not replace it
+      // with the full-list error branch.
+      expect(screen.getByText('Widget')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^delete$/i })).not.toBeDisabled();
+    });
   });
 });

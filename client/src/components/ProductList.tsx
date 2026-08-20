@@ -74,6 +74,18 @@ export function ProductList({ onEdit }: ProductListProps) {
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
 
+  // Story 3.5: which row(s) currently have a delete in flight -- a Set (not a
+  // single id) so concurrent deletes of different products are independent,
+  // per this story's Always boundary. `deletingIdsRef` mirrors the state
+  // synchronously so a re-entrant click on the same row's Delete button
+  // (before React has re-rendered the now-disabled button) is still rejected.
+  const deletingIdsRef = useRef<Set<number>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+  // Story 3.5: a delete-specific error, separate from `state`'s fetch-error
+  // branch -- that branch replaces the whole list, which would contradict
+  // this story's AC that a failed delete leaves the item in the list.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const fetchProducts = useCallback(() => {
     const requestId = (requestIdRef.current += 1);
 
@@ -84,6 +96,15 @@ export function ProductList({ onEdit }: ProductListProps) {
           return;
         }
         setIsFetching(false);
+        // A completed (non-superseded) list load supersedes any prior
+        // delete-specific error context -- otherwise a stale deleteError
+        // banner (e.g. from a failed delete) would keep showing above a
+        // table that's since been successfully reloaded via an unrelated
+        // path (Retry, a future refresh trigger, etc). Deliberately placed
+        // here rather than synchronously at the top of fetchProducts to
+        // avoid a synchronous setState-in-effect call on mount (same
+        // rationale as isFetching's initialization above).
+        setDeleteError(null);
 
         if (!result.ok) {
           setState({ status: 'error', message: describeError(result) });
@@ -131,6 +152,73 @@ export function ProductList({ onEdit }: ProductListProps) {
     fetchProducts();
   }, [fetchProducts, isFetching]);
 
+  /**
+   * Story 3.5: gated by `window.confirm()` -- cancelling issues no API call
+   * (I/O matrix row 2). On confirm, `DELETE /api/products/{id}` via
+   * `apiFetch`; on success (204) reuses `fetchProducts()` to refresh, never
+   * `App.tsx`'s `refreshKey` (Never boundary -- ProductList already owns its
+   * own fetch/state). On failure, sets `deleteError` instead of removing the
+   * row -- no optimistic removal (Never boundary).
+   */
+  const handleDelete = useCallback(
+    (product: ProductDto) => {
+      if (deletingIdsRef.current.has(product.id)) {
+        // Re-entrant click on the same row while its delete is already in
+        // flight -- ignore (mirrors handleRetry's re-entrancy guard).
+        return;
+      }
+
+      const confirmed = window.confirm(`Delete "${product.name}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      deletingIdsRef.current.add(product.id);
+      setDeletingIds(new Set(deletingIdsRef.current));
+      setDeleteError(null);
+
+      apiFetch(`/api/products/${product.id}`, { method: 'DELETE' })
+        .then((result) => {
+          if (!result.ok) {
+            // Failure: the row stays in the list (no optimistic removal), so
+            // it genuinely needs to become interactive again.
+            deletingIdsRef.current.delete(product.id);
+            if (!mountedRef.current) {
+              return;
+            }
+            setDeletingIds(new Set(deletingIdsRef.current));
+            setDeleteError(describeError(result));
+            return;
+          }
+
+          // Success: deliberately leave this id in deletingIdsRef/deletingIds
+          // -- clearing it here would re-enable the just-deleted row's Delete
+          // button for the brief window before fetchProducts()'s refetch
+          // resolves and removes the row, letting a user re-click it and fire
+          // a confusing second DELETE for an already-gone product. Whichever
+          // way the refetch resolves, this is safe: on success the row (and
+          // its now-vestigial disabled button) disappears entirely from the
+          // re-rendered list; on failure `state` flips to the full-list error
+          // view, which renders no rows/buttons at all.
+          if (!mountedRef.current) {
+            return;
+          }
+          fetchProducts();
+        })
+        .catch(() => {
+          // apiFetch is documented to never throw/reject -- safety net only,
+          // same rationale as fetchProducts's .catch above.
+          deletingIdsRef.current.delete(product.id);
+          if (!mountedRef.current) {
+            return;
+          }
+          setDeletingIds(new Set(deletingIdsRef.current));
+          setDeleteError('Unexpected error -- please try again.');
+        });
+    },
+    [fetchProducts],
+  );
+
   if (state.status === 'loading') {
     return (
       <div className="product-list" role="status">
@@ -161,30 +249,46 @@ export function ProductList({ onEdit }: ProductListProps) {
   return (
     <div className="product-list">
       <h1>Products</h1>
+      {deleteError && (
+        <p className="product-list-delete-error" role="alert">
+          {deleteError}
+        </p>
+      )}
       <table className="product-table">
         <thead>
           <tr>
             <th scope="col">Name</th>
             <th scope="col">Price</th>
             <th scope="col">Category ID</th>
-            {onEdit && <th scope="col">Actions</th>}
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {state.products.map((product) => (
-            <tr key={product.id}>
-              <td>{product.name}</td>
-              <td>{formatPrice(product.price)}</td>
-              <td>{product.categoryId}</td>
-              {onEdit && (
+          {state.products.map((product) => {
+            const isDeleting = deletingIds.has(product.id);
+            return (
+              <tr key={product.id}>
+                <td>{product.name}</td>
+                <td>{formatPrice(product.price)}</td>
+                <td>{product.categoryId}</td>
                 <td>
-                  <button type="button" onClick={() => onEdit(product)}>
-                    Edit
+                  {onEdit && (
+                    <button type="button" onClick={() => onEdit(product)}>
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="delete-button"
+                    onClick={() => handleDelete(product)}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting…' : 'Delete'}
                   </button>
                 </td>
-              )}
-            </tr>
-          ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

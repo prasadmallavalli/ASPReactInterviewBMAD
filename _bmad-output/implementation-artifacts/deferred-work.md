@@ -327,3 +327,17 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4-edit-product.md`
   summary: The blank-field/first-category reset logic is duplicated between the `targetKey` resync effect and `handleSubmit`'s create-success branch in `ProductForm.tsx` — small DRY concern, risk of drift if one is edited without the other.
   evidence: Blind-hunter flagged the duplication. Low risk given both are ~3 lines; not worth a same-file patch on its own.
+
+## Deferred from: code review of spec-3-5-delete-product (2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-delete-product.md`
+  summary: The Delete button has no accessible name distinguishing which product it acts on (e.g. `aria-label="Delete {name}"`), and has no distinct destructive/danger visual styling separating it from Edit — same class of a11y/styling gap already deferred against `LoginForm`/`ProductList`/`ProductForm`.
+  evidence: Blind-hunter flagged the gaps. No AC requires WCAG-level coverage or a specific visual language for this MVP list.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-delete-product.md`
+  summary: Every delete failure (404 because the product was already removed elsewhere, 409, 500, network) is funneled through the same generic error message — no status-specific handling (e.g. a 404 could silently trigger a refetch instead of showing an error for a row that no longer exists).
+  evidence: Blind-hunter flagged the gap. Real but a design decision beyond this story's scope; matches the same "one generic message" precedent already accepted for `ProductForm`/`LoginForm`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-delete-product.md`
+  summary: If a DELETE succeeds but the follow-up `fetchProducts()` refresh itself fails, the whole view flips to the generic fetch-error screen with no indication the delete actually succeeded — the user can't tell whether to retry the delete or just the refresh.
+  evidence: Blind-hunter flagged the ambiguity. Real edge case, but resolving it cleanly needs a three-way state model (delete-succeeded-but-refresh-failed) beyond a simple patch; no AC requires it.

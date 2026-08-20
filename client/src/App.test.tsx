@@ -231,4 +231,102 @@ describe('App / AuthGate', () => {
     expect(screen.getByRole('button', { name: /add product/i })).toBeInTheDocument();
     expect(mockedApiFetch.mock.calls.length).toBe(callsBeforeCancel);
   });
+
+  // Story 3.5 AC: the full create -> list -> edit -> delete cycle, exercised
+  // end-to-end through the real App (no mocked ProductForm/ProductList/
+  // AuthProvider substitutes) -- confirms no page reload (auth is only
+  // checked once, at initial mount) and auth state stays intact throughout.
+  it('completes a full create -> edit -> delete cycle with no page reload and auth preserved', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const category: CategoryDto = { id: 1, name: 'Widgets' };
+    const createdProduct: ProductDto = { id: 99, name: 'New Product', price: 9.99, categoryId: 1 };
+    const updatedProduct: ProductDto = { ...createdProduct, name: 'Updated Product', price: 15 };
+    let productListFetchCount = 0;
+
+    mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+
+      if (path === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/categories') {
+        return Promise.resolve({ ok: true, status: 200, data: [category] });
+      }
+      if (path === '/api/products' && method === 'POST') {
+        return Promise.resolve({ ok: true, status: 201, data: createdProduct });
+      }
+      if (path === '/api/products/99' && method === 'PUT') {
+        return Promise.resolve({ ok: true, status: 200, data: updatedProduct });
+      }
+      if (path === '/api/products/99' && method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204, data: undefined });
+      }
+      if (path === '/api/products') {
+        productListFetchCount += 1;
+        // 1st (mount): empty. 2nd (post-create remount): the created
+        // product. 3rd (post-edit remount): the updated product. 4th
+        // (post-delete, ProductList's own fetchProducts): empty again.
+        const data =
+          productListFetchCount === 1
+            ? []
+            : productListFetchCount === 2
+              ? [createdProduct]
+              : productListFetchCount === 3
+                ? [updatedProduct]
+                : [];
+        return Promise.resolve({ ok: true, status: 200, data });
+      }
+      return Promise.resolve({ ok: false, status: 404, problem: null, networkError: false });
+    });
+
+    render(<App />);
+
+    // Create.
+    await waitFor(() => {
+      expect(screen.getByText(/no products/i)).toBeInTheDocument();
+    });
+    await user.type(screen.getByLabelText(/name/i), 'New Product');
+    await user.type(screen.getByLabelText(/price/i), '9.99');
+    await user.click(screen.getByRole('button', { name: /add product/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('New Product')).toBeInTheDocument();
+    });
+
+    // Edit.
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('New Product');
+    });
+    await user.clear(screen.getByLabelText(/name/i));
+    await user.type(screen.getByLabelText(/name/i), 'Updated Product');
+    await user.clear(screen.getByLabelText(/price/i));
+    await user.type(screen.getByLabelText(/price/i), '15');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Updated Product')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /add product/i })).toBeInTheDocument();
+
+    // Delete.
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+    expect(window.confirm).toHaveBeenCalledWith('Delete "Updated Product"?');
+    await waitFor(() => {
+      expect(screen.getByText(/no products/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Updated Product')).not.toBeInTheDocument();
+
+    // No page reload occurred: the mount-time session check ran exactly
+    // once across the whole create/edit/delete cycle -- a reload would have
+    // remounted AuthProvider and re-triggered it. Auth state (still on the
+    // authenticated ProductForm/ProductList view, not the login form) held
+    // throughout.
+    const authChecks = mockedApiFetch.mock.calls.filter(([path]) => path === '/api/auth/me');
+    expect(authChecks).toHaveLength(1);
+    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /log in/i })).not.toBeInTheDocument();
+  });
 });
