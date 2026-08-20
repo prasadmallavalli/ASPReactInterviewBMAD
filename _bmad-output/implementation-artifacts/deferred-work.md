@@ -341,3 +341,13 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-delete-product.md`
   summary: If a DELETE succeeds but the follow-up `fetchProducts()` refresh itself fails, the whole view flips to the generic fetch-error screen with no indication the delete actually succeeded — the user can't tell whether to retry the delete or just the refresh.
   evidence: Blind-hunter flagged the ambiguity. Real edge case, but resolving it cleanly needs a three-way state model (delete-succeeded-but-refresh-failed) beyond a simple patch; no AC requires it.
+
+## Deferred from: blind-hunter review of Story 4.1 (Architecture Decision Records, 2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-architecture-decision-records.md`
+  summary: The Story 2.3 CSRF/anti-forgery token mechanism — introduced specifically as a second control to close the CSRF gap `docs/adr/003-httponly-cookie-token-storage.md`'s cookie decision opened — has no ADR of its own, despite being a substantial, independently-motivated security decision (which token strategy, which endpoints it covers, why `[IgnoreAntiforgeryToken]` on `Login` specifically).
+  evidence: Flagged by the blind-hunter review of the ADR set. Real documentation gap, but writing it is a new ADR (a 7th, beyond this story's approved 4-6 scope), not a fix to an existing file — better scoped as its own follow-up if a future ADR pass happens.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-architecture-decision-records.md`
+  summary: Every ADR's Consequences section buries its open, unresolved gaps (the check-then-act 500-instead-of-409 races, the two validation gaps, the missing DI regression test) inside prose rather than a discrete, scannable "Known Issues" list, making them easy to skim past as accepted tradeoffs rather than still-open defects.
+  evidence: Flagged by the blind-hunter review of the ADR set. Real readability concern across all 6 files; restructuring every Consequences section is a formatting decision affecting the whole set, not a single-file patch — worth doing together if the ADR set is revised again.
