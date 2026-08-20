@@ -80,11 +80,11 @@ describe('App / AuthGate', () => {
     expect(screen.queryByRole('heading', { name: /log in/i })).not.toBeInTheDocument();
   });
 
-  // Review fix: the actual onCreated -> refreshKey -> ProductList remount
-  // wiring between CreateProductForm and App had zero coverage anywhere --
-  // CreateProductForm.test.tsx only asserts a standalone onCreated mock was
-  // called, never App's real handler. Renders the real, authenticated App,
-  // submits the real CreateProductForm, and confirms /api/products (GET) is
+  // Review fix: the actual onSaved -> refreshKey -> ProductList remount
+  // wiring between ProductForm and App had zero coverage anywhere --
+  // ProductForm.test.tsx only asserts a standalone onSaved mock was called,
+  // never App's real handler. Renders the real, authenticated App, submits
+  // the real ProductForm (create mode), and confirms /api/products (GET) is
   // fetched again afterward -- i.e. that App's refreshKey bump actually
   // forces ProductList to remount and refetch, not a mocked substitute.
   it('re-fetches the product list via App\'s real refreshKey wiring after a successful create', async () => {
@@ -128,5 +128,107 @@ describe('App / AuthGate', () => {
       expect(screen.getByText('New Product')).toBeInTheDocument();
     });
     expect(productListFetchCount).toBe(2);
+  });
+
+  // Story 3.4: the onEdit -> editingProduct -> ProductForm(edit) -> onSaved ->
+  // refreshKey -> ProductList remount wiring, exercised end-to-end through
+  // the real App (no mocked ProductForm/ProductList substitutes) -- mirrors
+  // the create->refresh integration test above but for the edit path.
+  it("re-fetches the product list via App's real refreshKey wiring after a successful edit", async () => {
+    const user = userEvent.setup();
+    const category: CategoryDto = { id: 1, name: 'Widgets' };
+    const existingProduct: ProductDto = { id: 42, name: 'Old Name', price: 5, categoryId: 1 };
+    const updatedProduct: ProductDto = { ...existingProduct, name: 'New Name', price: 15 };
+    let productListFetchCount = 0;
+
+    mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      if (path === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/categories') {
+        return Promise.resolve({ ok: true, status: 200, data: [category] });
+      }
+      if (path === '/api/products/42') {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (method === 'PUT') {
+          return Promise.resolve({ ok: true, status: 200, data: updatedProduct });
+        }
+      }
+      if (path === '/api/products') {
+        productListFetchCount += 1;
+        // First GET (mount): the original product. Second GET (post-edit
+        // remount): the updated product.
+        const data = productListFetchCount === 1 ? [existingProduct] : [updatedProduct];
+        return Promise.resolve({ ok: true, status: 200, data });
+      }
+      return Promise.resolve({ ok: false, status: 404, problem: null, networkError: false });
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Old Name')).toBeInTheDocument();
+    });
+    expect(productListFetchCount).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: /edit/i }));
+
+    // ProductForm switches to edit mode, pre-filled from the selected product.
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('Old Name');
+    });
+
+    await user.clear(screen.getByLabelText(/name/i));
+    await user.type(screen.getByLabelText(/name/i), 'New Name');
+    await user.clear(screen.getByLabelText(/price/i));
+    await user.type(screen.getByLabelText(/price/i), '15');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('New Name')).toBeInTheDocument();
+    });
+    expect(productListFetchCount).toBe(2);
+    // Back to create mode: the Add Product button is showing again, not Save/Cancel.
+    expect(screen.getByRole('button', { name: /add product/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+  });
+
+  // I/O matrix: Cancel clicked in edit mode -> returns to create mode; no API call issued for the cancel itself.
+  it('returns to create mode with no API call when Cancel is clicked in edit mode', async () => {
+    const user = userEvent.setup();
+    const category: CategoryDto = { id: 1, name: 'Widgets' };
+    const existingProduct: ProductDto = { id: 42, name: 'Old Name', price: 5, categoryId: 1 };
+
+    mockedApiFetch.mockImplementation((path: unknown) => {
+      if (path === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/categories') {
+        return Promise.resolve({ ok: true, status: 200, data: [category] });
+      }
+      if (path === '/api/products') {
+        return Promise.resolve({ ok: true, status: 200, data: [existingProduct] });
+      }
+      return Promise.resolve({ ok: false, status: 404, problem: null, networkError: false });
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Old Name')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /edit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('Old Name');
+    });
+
+    const callsBeforeCancel = mockedApiFetch.mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(screen.getByRole('button', { name: /add product/i })).toBeInTheDocument();
+    expect(mockedApiFetch.mock.calls.length).toBe(callsBeforeCancel);
   });
 });

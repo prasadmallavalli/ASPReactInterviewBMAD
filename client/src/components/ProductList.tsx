@@ -47,13 +47,18 @@ function formatPrice(price: number): string {
   return typeof price === 'number' && Number.isFinite(price) ? `$${price.toFixed(2)}` : '—';
 }
 
+export interface ProductListProps {
+  /** Story 3.4: invoked with the clicked row's product when its "Edit" button is clicked -- App.tsx lifts it into edit mode. Optional so ProductList still renders (no Edit column) if a caller omits it. */
+  onEdit?: (product: ProductDto) => void;
+}
+
 /**
  * Fetches `/api/products` on mount via Story 3.1's `apiFetch` (no auth
  * required -- the endpoint is public per Story 2.3) and renders loading,
  * error (with Retry), empty-catalog, or populated-list states per this
  * story's I/O matrix. Mounted as the app's root view.
  */
-export function ProductList() {
+export function ProductList({ onEdit }: ProductListProps) {
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   // True whenever a fetch (initial mount or a Retry click) is in flight --
   // drives the Retry button's disabled state and guards against re-entrant
@@ -162,6 +167,7 @@ export function ProductList() {
             <th scope="col">Name</th>
             <th scope="col">Price</th>
             <th scope="col">Category ID</th>
+            {onEdit && <th scope="col">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -170,6 +176,13 @@ export function ProductList() {
               <td>{product.name}</td>
               <td>{formatPrice(product.price)}</td>
               <td>{product.categoryId}</td>
+              {onEdit && (
+                <td>
+                  <button type="button" onClick={() => onEdit(product)}>
+                    Edit
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

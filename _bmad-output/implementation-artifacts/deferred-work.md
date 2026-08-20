@@ -317,3 +317,13 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3-create-product.md`
   summary: No focus management on submit failure, no `aria-invalid`/`aria-describedby`/`aria-busy` linking inputs to the error state, and no `:focus-visible`/invalid-state CSS — real accessibility gaps.
   evidence: Blind-hunter flagged the gaps. Mirrors the same class of gap already deferred against `ProductList` and `LoginForm`; no AC requires WCAG-level coverage for this MVP form.
+
+## Deferred from: code review of spec-3-4-edit-product (2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-edit-product.md`
+  summary: `ProductForm`'s single generic validation error isn't linked to specific fields via `aria-invalid`/`aria-describedby`, and switching between create/edit modes moves no focus to the heading or first field — same class of a11y gap already deferred against `LoginForm`/`ProductList`/`CreateProductForm`.
+  evidence: Blind-hunter flagged the gaps. No AC requires WCAG-level coverage for this MVP form.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-edit-product.md`
+  summary: The blank-field/first-category reset logic is duplicated between the `targetKey` resync effect and `handleSubmit`'s create-success branch in `ProductForm.tsx` — small DRY concern, risk of drift if one is edited without the other.
+  evidence: Blind-hunter flagged the duplication. Low risk given both are ~3 lines; not worth a same-file patch on its own.

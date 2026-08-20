@@ -162,4 +162,41 @@ describe('ProductList', () => {
       expect(screen.getByText('Widget')).toBeInTheDocument();
     });
   });
+
+  // Story 3.4: no onEdit prop -> no Edit button/Actions column rendered at all.
+  it('renders no Edit button when onEdit is not provided', async () => {
+    mockedApiFetch.mockResolvedValue({ ok: true, status: 200, data: [makeProduct()] });
+
+    render(<ProductList />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Widget')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+  });
+
+  // Story 3.4: an Edit button per row, invoking onEdit with that row's exact product.
+  it('invokes onEdit with the clicked row\'s product when its Edit button is clicked', async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    const products = [
+      makeProduct({ id: 1, name: 'Widget', price: 9.99, categoryId: 3 }),
+      makeProduct({ id: 2, name: 'Gadget', price: 19.5, categoryId: 7 }),
+    ];
+    mockedApiFetch.mockResolvedValue({ ok: true, status: 200, data: products });
+
+    render(<ProductList onEdit={onEdit} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Gadget')).toBeInTheDocument();
+    });
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    expect(editButtons).toHaveLength(2);
+
+    await user.click(editButtons[1]);
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith(products[1]);
+  });
 });

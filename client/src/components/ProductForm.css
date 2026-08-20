@@ -1,43 +1,53 @@
-.create-product-form {
+.product-form {
   max-width: 320px;
   margin: 2rem auto;
   padding: 0 1rem;
   text-align: left;
 }
 
-.create-product-form h2 {
+.product-form h2 {
   font-size: 1.25rem;
   margin-bottom: 1rem;
 }
 
-.create-product-form-field {
+.product-form-field {
   display: flex;
   flex-direction: column;
   margin-bottom: 1rem;
 }
 
-.create-product-form-field label {
+.product-form-field label {
   margin-bottom: 0.25rem;
   font-weight: 600;
 }
 
-.create-product-form-field input,
-.create-product-form-field select {
+.product-form-field input,
+.product-form-field select {
   padding: 0.5rem;
   font-size: 1rem;
 }
 
-.create-product-form-error {
+.product-form-error {
   color: #c0392b;
   margin-bottom: 1rem;
 }
 
-.create-product-form button {
+.product-form button {
   padding: 0.5rem 1rem;
   cursor: pointer;
 }
 
-.create-product-form button:disabled {
+.product-form button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.product-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.product-form-cancel {
+  background: none;
+  border: 1px solid #888;
 }
