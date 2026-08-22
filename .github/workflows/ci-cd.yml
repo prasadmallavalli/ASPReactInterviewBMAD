@@ -1,0 +1,117 @@
+name: CI/CD
+
+# Fulfills the CI pipeline item from docs/eng-mgmt/post-mvp-roadmap.md
+# ("a CI pipeline running dotnet build/dotnet test on every change... and
+# npm run build/npm test alongside it") -- previously logged as a gap, no
+# workflow existed before this one.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Ci_Only_Password_Not_Real_2026!"
+          MSSQL_PID: "Developer"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    env:
+      ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ASPFullStackBMAD;User Id=sa;Password=Ci_Only_Password_Not_Real_2026!;TrustServerCertificate=True"
+      Jwt__SigningKey: "ci-only-signing-key-not-used-anywhere-else-2026-safe"
+      Jwt__Issuer: "ASPFullStackBMAD"
+      Jwt__Audience: "ASPFullStackBMAD"
+      Jwt__ExpiryMinutes: "60"
+      Cors__FrontendOrigin: "http://localhost:5173"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Apply EF Core migrations
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef database update -p src/Infrastructure -s src/Api
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build # also runs tsc -b, so this is the type-check gate too
+
+  deploy:
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Build frontend
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy frontend build into wwwroot
+        run: |
+          rm -rf src/Api/wwwroot
+          mkdir -p src/Api/wwwroot
+          cp -r client/dist/. src/Api/wwwroot/
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish API (with the SPA embedded in wwwroot)
+        run: dotnet publish src/Api/Api.csproj --configuration Release --output ./publish
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish

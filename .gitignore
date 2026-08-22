@@ -3,3 +3,12 @@ obj/
 .vs/
 *.user
 src/Api/appsettings.Development.json
+# Built React SPA, copied in by the deploy workflow before `dotnet publish`.
+# The directory itself must exist on disk (wwwroot/.gitkeep, tracked) --
+# ASP.NET Core's Static Web Assets loader throws DirectoryNotFoundException
+# at startup if wwwroot is physically absent, which broke both local `dotnet
+# run` and the entire WebApplicationFactory<Program>-based test suite the
+# one time this was tried without a placeholder. Only its generated contents
+# are ignored.
+src/Api/wwwroot/*
+!src/Api/wwwroot/.gitkeep

@@ -8,6 +8,7 @@ using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -271,6 +272,36 @@ builder.Services.AddAntiforgery(options =>
 
 var app = builder.Build();
 
+// Azure App Service (and most PaaS hosts) terminate TLS at their own
+// reverse proxy and forward the request to Kestrel as plain HTTP, adding
+// X-Forwarded-Proto/X-Forwarded-For headers to say what the client actually
+// used. Without this, UseHttpsRedirection() below sees an "http" request
+// that's really already https, redirects to https, the proxy forwards that
+// as http again, and the client loops. Must run before anything that reads
+// Request.Scheme/IsHttps -- placed first, before even the correlation-ID
+// middleware, so its own logs reflect the real scheme too. A no-op locally
+// (no reverse proxy sends these headers in local dev).
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+// Deploy-target auto-migration: applies any pending EF Core migrations at
+// startup so a fresh deployment (no interactive terminal to run
+// `dotnet ef database update` by hand) ends up with a live schema. Gated to
+// skip Development specifically because that's the one environment
+// WebApplicationFactory<Program>-based integration tests boot the host
+// under (AuthPipelineTests/MutationEndpointsAuthTests explicitly call
+// .UseEnvironment("Development")) — those tests deliberately need no
+// reachable database for their DB-free assertions, and this call would
+// force one. Local dev keeps using the existing manual
+// `dotnet ef database update` workflow (spec-1-1) unchanged.
+if (!app.Environment.IsDevelopment())
+{
+    using var migrationScope = app.Services.CreateScope();
+    migrationScope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+}
+
 // Configure the HTTP request pipeline.
 // CorrelationIdMiddleware is registered FIRST (outermost) so it wraps
 // UseExceptionHandler() too, not the other way around. Middleware order is
@@ -297,6 +328,19 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serves the built React SPA (client/dist, copied into wwwroot by the CI/CD
+// pipeline before `dotnet publish`) from the same origin as the API — a
+// deliberate deploy-target choice (interview-demo hosting) to keep the
+// frontend and API same-site, so the existing SameSite=Strict cookie/CSRF
+// design needs zero rework. UseDefaultFiles() serves wwwroot/index.html for
+// `GET /`; no MapFallbackToFile is needed since this app has no
+// client-side routing (no react-router) for deep-link paths to fall back
+// for. wwwroot does not exist in local dev (nothing copies it there), so
+// this is a harmless no-op locally -- Vite's dev server (localhost:5173)
+// remains the actual local frontend, unchanged.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // Must run between UseHttpsRedirection() and UseAuthentication() — the
 // documented required order for CORS to apply before auth/authorization
