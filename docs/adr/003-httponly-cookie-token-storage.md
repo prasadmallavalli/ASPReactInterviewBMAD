@@ -3,7 +3,7 @@
 Status: Accepted
 Date: 2026-08-19 (Story 2.2) · Deciders: Prasadmallavalli
 This is the writeup for AD-5 in `ARCHITECTURE-SPINE.md`.
-Related: CSRF/anti-forgery mechanism from Story 2.3 (see Consequences) has no ADR of its own yet — logged as a gap in [`deferred-work.md`](../../_bmad-output/implementation-artifacts/deferred-work.md).
+Related: the CSRF/anti-forgery mechanism from Story 2.3 (see Consequences) has its own writeup in [ADR-007](007-csrf-anti-forgery-mechanism.md).
 
 ## Context
 

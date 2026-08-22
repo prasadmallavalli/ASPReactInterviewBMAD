@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 19:49
+last_updated: 08-22-2026 20:01
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -180,5 +180,5 @@ action_items:
       rather than Login (identity-binding pitfall), which endpoints are exempted and
       why."
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md"
