@@ -49,7 +49,7 @@ Story 1.5 deliberately registered `IProductRepository` as `AddSingleton` instead
 
 Post-review, `ValidateScopes`/`ValidateOnBuild` were enabled outside Development too (`Program.cs:25-26`), so this class of misregistration now fails fast at startup in any environment — a reader relying on this checklist item alone should know that startup guardrail, not just code-review vigilance, is now a second line of defense.
 
-*Proposed, not yet built: this finding would be a strong basis for a future Epic 5 SBI feedback-framework example — a concrete situation (Story 1.5's load test), a specific behavior (the exact misregistration line), and a measured impact (48/50 requests failing, full stack traces). Flagging the fit now, since Epic 5 doesn't exist yet as of this writing.*
+*Update (added during Epic 5's retrospective): this fit was correct — Epic 5's [SBI feedback-framework example](../eng-mgmt/sbi-feedback-example.md) uses this exact finding, built on the same concrete situation (Story 1.5's load test), behavior (the exact misregistration line), and impact (48/50 requests failing, full stack traces) flagged here when this checklist was first written, before Epic 5 existed.*
 
 **Item 5 (check-then-act race) — `f1bc57f`, `CategoryService.DeleteAsync` (still present today).**
 

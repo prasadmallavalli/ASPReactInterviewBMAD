@@ -1,6 +1,6 @@
 # Hiring-Loop Question Set
 
-Status: Active · Date: 2026-08-22 · Author: Prasadmallavalli
+Status: Active · Date: 2026-08-22 · Author: Prasadmallavalli · Satisfies: Story 5.4 (FR-11's hiring-question-set requirement)
 
 Eight questions, each built from a real artifact or code decision in this repo — not generic trivia. A trivia question has one correct answer a candidate either knows or doesn't ("what does `AddScoped` do?"). A judgment question hands the candidate a real decision this project actually made, with its real tradeoff, and listens for how they reason about it — there's no single "correct" answer, only a better- or worse-reasoned one. Every question below is built the second way: it starts from a real snippet or finding, not an abstract concept.
 
@@ -18,7 +18,7 @@ Eight questions, each built from a real artifact or code decision in this repo �
 
 ## 2. The check-then-act race — a real, still-open bug *(backend, mid-to-senior)*
 
-**Show them:** [`CategoryService.DeleteAsync`](../../src/Application/Services/CategoryService.cs) — `HasProductsAsync` check, then delete — and [ADR-005](../adr/005-category-delete-conflict-no-cascade.md)'s Consequences, which admits the race surfaces as an unhandled 500 instead of a clean 409 in a narrow window.
+**Show them:** [`CategoryService.DeleteAsync`](../../src/Application/Services/CategoryService.cs) — `HasProductsAsync` check, then delete — and [ADR-005](../adr/005-category-delete-conflict-no-cascade.md)'s Consequences, which admits the race surfaces as an unhandled 500 instead of a clean 409 in a narrow window. This is one of three still-open instances of the same pattern ([the checklist](../review/code-review-checklist.md)'s Item 5) — the other two are in Product create/update and User registration — worth knowing before a candidate asks "is this the only place this happens?"
 
 **Ask:** "Walk me through what happens if a Product insert lands between the `HasProductsAsync` check and the delete committing. Then tell me why we haven't fixed it."
 
@@ -48,7 +48,7 @@ Eight questions, each built from a real artifact or code decision in this repo �
 
 ## 5. DI lifetimes — the bug this project deliberately caused *(backend, any level)*
 
-**Show them:** the Story 1.5 reproduction — `IProductRepository` registered `AddSingleton` while depending on a `Scoped` `AppDbContext`, 48 of 50 concurrent requests failing — full account in [ADR-006](../adr/006-scoped-di-lifetimes.md).
+**Show them:** the Story 1.5 reproduction — `IProductRepository` registered `AddSingleton` while depending on a `Scoped` `AppDbContext`, 48 of 50 concurrent requests failing — full account in [ADR-006](../adr/006-scoped-di-lifetimes.md), also [the checklist](../review/code-review-checklist.md)'s Item 3.
 
 **Ask:** "If I registered a repository as Singleton while it depends on a Scoped `DbContext`, what breaks, and why does it only show up under load?"
 
@@ -68,7 +68,7 @@ Eight questions, each built from a real artifact or code decision in this repo �
 
 ## 7. Stale-response guards — pick the right pattern, not the familiar one *(frontend/React, mid-to-senior)*
 
-**Show them:** three different guard shapes in this codebase for the same underlying problem — `ProductList.tsx`'s `requestIdRef` generation counter, `ProductForm.tsx`'s key-based `targetKeyRef`, and `AuthContext.tsx`'s `mountedRef`-only guard (the mentoring note is explicit that the third one still has a real, narrow gap: no ordering guard between the mount-time `/me` check and a mid-flight `login()` call).
+**Show them:** three different guard shapes in this codebase for the same underlying problem — `ProductList.tsx`'s `requestIdRef` generation counter, `ProductForm.tsx`'s key-based `targetKeyRef`, and `AuthContext.tsx`'s `mountedRef`-only guard ([the mentoring note](../onboarding/mentoring-note.md) is explicit that the third one still has a real, narrow gap: no ordering guard between the mount-time `/me` check and a mid-flight `login()` call).
 
 **Ask:** "These three components each guard against stale async responses differently. Why aren't they all the same pattern — and which one, if any, is actually incomplete?"
 
