@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { apiFetch } from '../api/client';
-import type { ApiFailure } from '../api/client';
+import { describeApiError } from '../api/describeApiError';
 import type { CategoryDto, ProductDto } from '../api/types';
 import './ProductForm.css';
 
@@ -41,29 +41,6 @@ export type ProductFormProps =
       /** Invoked when Cancel is clicked, with no API call. */
       onCancel: () => void;
     };
-
-/**
- * Renders a failed `apiFetch` result as a single human-readable message --
- * mirrors `ProductList`'s/`AuthContext`'s `describeError` (network failure
- * vs. `problem.title`/`detail` vs. a last-resort status-code fallback). Kept
- * as its own copy rather than shared/exported, same rationale as
- * `AuthContext`'s copy: no coupling reason yet to introduce a shared helper
- * module for the growing number of call sites.
- */
-function describeError(result: ApiFailure): string {
-  if (result.networkError) {
-    return 'Network error -- could not reach the server. Check your connection and try again.';
-  }
-
-  const parts = [result.problem?.title, result.problem?.detail].filter(
-    (part): part is string => Boolean(part),
-  );
-  if (parts.length > 0) {
-    return parts.join(': ');
-  }
-
-  return result.status ? `Request failed (status ${result.status}).` : 'Request failed.';
-}
 
 /**
  * Controlled Name/Price/Category form, mode-aware per Story 3.4: `create`
@@ -302,7 +279,7 @@ export function ProductForm(props: ProductFormProps) {
     }
 
     if (!result.ok) {
-      setError(describeError(result));
+      setError(describeApiError(result));
       setIsSubmitting(false);
       return;
     }

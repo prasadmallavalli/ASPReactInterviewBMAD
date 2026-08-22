@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiFetch } from '../api/client';
-import type { ApiFailure } from '../api/client';
+import { describeApiError } from '../api/describeApiError';
 import type { UserDto } from '../api/types';
 
 /**
@@ -27,30 +27,6 @@ export interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-/**
- * Renders a failed `apiFetch` result as a single human-readable message --
- * mirrors `ProductList`'s `describeError` (network failure vs.
- * `problem.title`/`detail` vs. a last-resort status-code fallback). Kept as
- * a separate copy here rather than shared/exported: this story's Code Map
- * scopes `client/src/auth/` as a fresh, self-contained directory, and the
- * two call sites (products vs. auth) have no coupling reason to share a
- * helper yet.
- */
-function describeAuthError(result: ApiFailure): string {
-  if (result.networkError) {
-    return 'Network error -- could not reach the server. Check your connection and try again.';
-  }
-
-  const parts = [result.problem?.title, result.problem?.detail].filter(
-    (part): part is string => Boolean(part),
-  );
-  if (parts.length > 0) {
-    return parts.join(': ');
-  }
-
-  return result.status ? `Request failed (status ${result.status}).` : 'Request failed.';
-}
 
 /**
  * Minimal runtime guard on a successful `apiFetch<UserDto>` result --
@@ -148,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // no session was established. Auth status is left untouched (still
         // whatever it was, normally 'unauthenticated') so the caller can
         // show an inline error and let the user retry from an editable form.
-        return { ok: false, message: describeAuthError(loginResult) };
+        return { ok: false, message: describeApiError(loginResult) };
       }
 
       // Login succeeded and set the access_token cookie, but the XSRF-TOKEN
@@ -157,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // both cookies being present.
       const meResult = await apiFetch<UserDto>('/api/auth/me');
       if (!meResult.ok) {
-        return { ok: false, message: describeAuthError(meResult) };
+        return { ok: false, message: describeApiError(meResult) };
       }
       if (!isUserDto(meResult.data)) {
         return { ok: false, message: 'Unexpected response from server.' };

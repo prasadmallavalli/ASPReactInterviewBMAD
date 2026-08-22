@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api/client';
-import type { ApiFailure } from '../api/client';
+import { describeApiError } from '../api/describeApiError';
 import type { ProductDto } from '../api/types';
 import './ProductList.css';
 
@@ -14,28 +14,6 @@ type FetchState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'success'; products: ProductDto[] };
-
-/**
- * Renders a failed `apiFetch` result as a single human-readable message --
- * `problem.title`/`detail` when the server sent RFC 7807 ProblemDetails,
- * a dedicated message for network failures (retries already exhausted by
- * `apiFetch` itself), and a last-resort fallback for a failure response with
- * no parseable body.
- */
-function describeError(result: ApiFailure): string {
-  if (result.networkError) {
-    return 'Network error -- could not reach the server. Check your connection and try again.';
-  }
-
-  const parts = [result.problem?.title, result.problem?.detail].filter(
-    (part): part is string => Boolean(part),
-  );
-  if (parts.length > 0) {
-    return parts.join(': ');
-  }
-
-  return result.status ? `Request failed (status ${result.status}).` : 'Request failed.';
-}
 
 /**
  * Formats a product's price defensively -- `apiFetch` casts the response
@@ -130,7 +108,7 @@ export function ProductList({ onEdit, busyProductId, refreshSignal }: ProductLis
         setDeleteError(null);
 
         if (!result.ok) {
-          setState({ status: 'error', message: describeError(result) });
+          setState({ status: 'error', message: describeApiError(result) });
           return;
         }
 
@@ -215,7 +193,7 @@ export function ProductList({ onEdit, busyProductId, refreshSignal }: ProductLis
               return;
             }
             setDeletingIds(new Set(deletingIdsRef.current));
-            setDeleteError(describeError(result));
+            setDeleteError(describeApiError(result));
             return;
           }
 
