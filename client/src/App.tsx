@@ -60,7 +60,11 @@ function AuthGate() {
       ) : (
         <ProductForm mode="create" onSaved={handleSaved} />
       )}
-      <ProductList key={refreshKey} onEdit={setEditingProduct} />
+      <ProductList
+        key={refreshKey}
+        onEdit={setEditingProduct}
+        busyProductId={editingProduct?.id ?? null}
+      />
     </>
   );
 }

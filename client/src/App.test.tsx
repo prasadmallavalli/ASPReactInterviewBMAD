@@ -232,6 +232,50 @@ describe('App / AuthGate', () => {
     expect(mockedApiFetch.mock.calls.length).toBe(callsBeforeCancel);
   });
 
+  // Retro fix (Epic 3, Finding A): App's real editingProduct state must
+  // actually reach ProductList as busyProductId -- ProductList.test.tsx
+  // covers the prop's own behavior in isolation, this proves App wires it
+  // through for real. Opening a row in the edit form disables that row's
+  // own Delete button (closing the "delete the row I'm editing" race);
+  // returning to create mode (via Cancel) re-enables it.
+  it("disables a row's Delete button while it's open in the edit form, via App's real wiring", async () => {
+    const user = userEvent.setup();
+    const category: CategoryDto = { id: 1, name: 'Widgets' };
+    const existingProduct: ProductDto = { id: 42, name: 'Old Name', price: 5, categoryId: 1 };
+
+    mockedApiFetch.mockImplementation((path: unknown) => {
+      if (path === '/api/auth/me') {
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/categories') {
+        return Promise.resolve({ ok: true, status: 200, data: [category] });
+      }
+      if (path === '/api/products') {
+        return Promise.resolve({ ok: true, status: 200, data: [existingProduct] });
+      }
+      return Promise.resolve({ ok: false, status: 404, problem: null, networkError: false });
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Old Name')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /^delete$/i })).not.toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /edit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^delete$/i })).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^delete$/i })).not.toBeDisabled();
+    });
+  });
+
   // Retro fix (Epic 3, Finding D): the composed login -> app UI transition
   // was never exercised by any automated test -- every other scenario here
   // mocks /api/auth/me as already-200 at mount, LoginForm.test.tsx mocks

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 20:11
+last_updated: 08-22-2026 20:15
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -120,7 +120,7 @@ action_items:
     action: "Design a shared per-product busy signal so ProductList Edit/Delete and
       ProductForm submit state are mutually aware for the same row (Finding A)"
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
   - id: "epic-3-retro-item-7-reconsider-the-refreshkey-remount-mechan"
     epic: 3

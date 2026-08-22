@@ -201,6 +201,46 @@ describe('ProductList', () => {
     expect(onEdit).toHaveBeenCalledWith(products[1]);
   });
 
+  // Retro fix (Epic 3, Finding A): the row identified by `busyProductId`
+  // (App.tsx's editingProduct) is the one currently open in the edit form --
+  // its Delete must be disabled for as long as that's true, not just while a
+  // save is in flight, closing the "delete the row I'm editing" race.
+  // Other rows, and this row's own Edit button, stay interactive.
+  it('disables only the busyProductId row\'s Delete button, leaving Edit and other rows interactive', async () => {
+    const products = [
+      makeProduct({ id: 1, name: 'Widget' }),
+      makeProduct({ id: 2, name: 'Gadget' }),
+    ];
+    mockedApiFetch.mockResolvedValue({ ok: true, status: 200, data: products });
+
+    render(<ProductList onEdit={vi.fn()} busyProductId={1} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Gadget')).toBeInTheDocument();
+    });
+
+    const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+    const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i });
+    expect(deleteButtons[0]).toBeDisabled();
+    expect(editButtons[0]).not.toBeDisabled();
+    expect(deleteButtons[1]).not.toBeDisabled();
+    expect(editButtons[1]).not.toBeDisabled();
+  });
+
+  // Retro fix (Finding A): no busyProductId (or null, App.tsx's "not
+  // editing" value) -> every row's Delete stays interactive as before.
+  it('leaves every row\'s Delete button enabled when busyProductId is null/omitted', async () => {
+    const products = [makeProduct({ id: 1, name: 'Widget' })];
+    mockedApiFetch.mockResolvedValue({ ok: true, status: 200, data: products });
+
+    render(<ProductList onEdit={vi.fn()} busyProductId={null} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Widget')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /^delete$/i })).not.toBeDisabled();
+  });
+
   // Story 3.5 I/O matrix: Delete clicked + confirmed -> DELETE fires via
   // apiFetch, and on 204 the list is refreshed via fetchProducts (item disappears).
   describe('delete', () => {
@@ -269,8 +309,11 @@ describe('ProductList', () => {
 
     // I/O matrix: delete in flight -> that row's Delete button disabled
     // (loading); other rows' Edit/Delete stay interactive (concurrent
-    // deletes of different products are independent).
-    it('disables only the deleting row\'s Delete button while its request is in flight, leaving other rows interactive', async () => {
+    // deletes of different products are independent). Retro fix (Finding A):
+    // the deleting row's own Edit button is now also disabled -- clicking
+    // Edit on a row whose delete just succeeded used to show a form for a
+    // product that no longer exists.
+    it("disables the deleting row's Edit and Delete buttons while its request is in flight, leaving other rows interactive", async () => {
       const user = userEvent.setup();
       vi.spyOn(window, 'confirm').mockReturnValue(true);
       const products = [
@@ -310,8 +353,9 @@ describe('ProductList', () => {
         expect(screen.getByRole('button', { name: /deleting/i })).toBeDisabled();
       });
 
-      // Other row's Edit/Delete remain interactive.
+      // The deleting row's own Edit is disabled too; the other row's Edit/Delete remain interactive.
       const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+      expect(editButtons[0]).toBeDisabled();
       expect(editButtons[1]).not.toBeDisabled();
       expect(deleteButtons[1]).not.toBeDisabled();
 

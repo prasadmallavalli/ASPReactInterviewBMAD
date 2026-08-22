@@ -50,6 +50,17 @@ function formatPrice(price: number): string {
 export interface ProductListProps {
   /** Story 3.4: invoked with the clicked row's product when its "Edit" button is clicked -- App.tsx lifts it into edit mode. Optional so ProductList still renders (no Edit column) if a caller omits it. */
   onEdit?: (product: ProductDto) => void;
+  /**
+   * Retro fix (Epic 3, Finding A): the id of the product currently open in
+   * App.tsx's edit form, if any. `ProductForm`'s in-flight PUT is not itself
+   * surfaced here -- disabling this row's Delete for the whole time it's
+   * open in the edit form (not just while a save is in flight) is what
+   * actually closes the race: clicking Delete on a row the edit form has
+   * open would otherwise remove it server-side while the form keeps showing
+   * it as live and submittable. Optional so ProductList still renders
+   * standalone (e.g. in isolation in tests) if a caller omits it.
+   */
+  busyProductId?: number | null;
 }
 
 /**
@@ -58,7 +69,7 @@ export interface ProductListProps {
  * error (with Retry), empty-catalog, or populated-list states per this
  * story's I/O matrix. Mounted as the app's root view.
  */
-export function ProductList({ onEdit }: ProductListProps) {
+export function ProductList({ onEdit, busyProductId }: ProductListProps) {
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   // True whenever a fetch (initial mount or a Retry click) is in flight --
   // drives the Retry button's disabled state and guards against re-entrant
@@ -266,6 +277,12 @@ export function ProductList({ onEdit }: ProductListProps) {
         <tbody>
           {state.products.map((product) => {
             const isDeleting = deletingIds.has(product.id);
+            // Retro fix (Finding A): this row is currently open in the edit
+            // form -- Edit is disabled while its own delete is in flight
+            // (unchanged), and Delete is additionally disabled for as long as
+            // this row is the one being edited, not just while a save is
+            // in flight, closing the "delete the row I'm editing" race.
+            const isBeingEdited = busyProductId === product.id;
             return (
               <tr key={product.id}>
                 <td>{product.name}</td>
@@ -273,7 +290,7 @@ export function ProductList({ onEdit }: ProductListProps) {
                 <td>{product.categoryId}</td>
                 <td>
                   {onEdit && (
-                    <button type="button" onClick={() => onEdit(product)}>
+                    <button type="button" onClick={() => onEdit(product)} disabled={isDeleting}>
                       Edit
                     </button>
                   )}
@@ -281,7 +298,7 @@ export function ProductList({ onEdit }: ProductListProps) {
                     type="button"
                     className="delete-button"
                     onClick={() => handleDelete(product)}
-                    disabled={isDeleting}
+                    disabled={isDeleting || isBeingEdited}
                   >
                     {isDeleting ? 'Deleting…' : 'Delete'}
                   </button>
