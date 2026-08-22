@@ -801,4 +801,29 @@ describe('ProductForm price validation', () => {
     });
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
   });
+
+  // Retro fix (Epic 3, Finding H): the JS-level guard checked finiteness and
+  // positivity but had no upper bound, even though the native `max="1000000"`
+  // attribute encodes one -- a value above it (bypassable the same way the
+  // other native constraints already are, per the tests above) would have
+  // reached the network call unchecked.
+  it('shows a form-level error and does not submit when Price is above 1,000,000', async () => {
+    const user = userEvent.setup();
+    await renderReady();
+
+    await user.type(screen.getByLabelText(/name/i), 'Valid Name');
+    await user.type(screen.getByLabelText(/price/i), '1000001');
+    // The native `max="1000000"` constraint would also block a click-driven
+    // submit for a value this large -- dispatch `submit` directly (like the
+    // other cases above) to exercise this story's own JS-level guard in
+    // isolation, independent of what the browser's constraint validation
+    // happens to catch first.
+    fireEvent.submit(screen.getByRole('button', { name: /add product/i }).closest('form')!);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    // Only the categories fetch happened -- no create POST was issued.
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+  });
 });

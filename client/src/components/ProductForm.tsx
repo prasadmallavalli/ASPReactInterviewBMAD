@@ -222,12 +222,15 @@ export function ProductForm(props: ProductFormProps) {
     // number-typed state but originate from string inputs, so an
     // empty/invalid value (`Number('')` is `0`, `Number('not-a-number')` is
     // `NaN`) must be caught here rather than silently serialized. Price is
-    // additionally checked for finiteness and positivity (code review fix):
-    // `Number('')` is `0` (passes `!Number.isNaN`, fails `<= 0` here), and an
-    // absurdly large literal like `1e400` parses to `Infinity` (passes
-    // `!Number.isNaN`, fails `!Number.isFinite` here) -- both would otherwise
-    // reach the network call, with `Infinity` silently serializing to `null`
-    // via `JSON.stringify`.
+    // additionally checked for finiteness, positivity, and an upper bound
+    // (code review fix / retro fix, Finding H): `Number('')` is `0` (passes
+    // `!Number.isNaN`, fails `<= 0` here), an absurdly large literal like
+    // `1e400` parses to `Infinity` (passes `!Number.isNaN`, fails
+    // `!Number.isFinite` here), and a value above 1,000,000 would otherwise
+    // bypass the native `max="1000000"` attribute the same way `fireEvent.submit`
+    // already proves the other native constraints can be bypassed -- all
+    // three would otherwise reach the network call, with `Infinity` silently
+    // serializing to `null` via `JSON.stringify`.
     const trimmedName = name.trim();
     const parsedPrice = Number(price);
     const parsedCategoryId = Number(categoryId);
@@ -236,6 +239,7 @@ export function ProductForm(props: ProductFormProps) {
       !trimmedName ||
       !Number.isFinite(parsedPrice) ||
       parsedPrice <= 0 ||
+      parsedPrice > 1_000_000 ||
       Number.isNaN(parsedCategoryId)
     ) {
       setError('Please enter a valid name, price, and category.');
