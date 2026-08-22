@@ -363,3 +363,9 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-user-login-jwt-via-httponly-cookie.md`
   summary: `SameSite=Strict` on the `access_token` cookie may not survive a genuinely cross-domain (not just cross-port) frontend/API deployment — `SameSite=Strict` cookies are never sent on requests where the top-level site differs, which is a stricter bar than just "different origin."
   evidence: Blind-hunter flagged the gap during code review. Works correctly today because the frontend and API are same-site (`localhost` at different ports, per the CORS config); no AC or deployment target currently requires a cross-domain split. Worth revisiting only if frontend and API ever land on genuinely different registrable domains in a real deployment.
+
+## Epic 2 retrospective follow-up (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md`
+  summary: The check-then-act race/DI-lifetime-regression-test gap (previously logged six separate times with "no tracked ticket" across ADR-001, ADR-004, ADR-005, the code review checklist, the post-MVP roadmap, and this ledger) now has an owning backlog story: [`spec-backlog-domain-exception-check-then-act-race-fix.md`](spec-backlog-domain-exception-check-then-act-race-fix.md).
+  evidence: Epic 4 retrospective action item `epic-4-retro-item-13`. The new file is an unscheduled backlog proposal, not a frozen dev-ready spec — it consolidates the six prior mentions into one place with a suggested (not approved) fix shape, so future sessions stop re-discovering the same gap from scratch.

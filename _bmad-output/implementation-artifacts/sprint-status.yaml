@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 21:14
+last_updated: 08-22-2026 21:20
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -171,7 +171,7 @@ action_items:
       for the check-then-act races and the missing DI-lifetime regression test --
       six independent 'no tracked ticket' callouts across Epic 4's docs, zero tickets"
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-08-22.md"
   - id: "epic-2-retro-item-14-write-an-adr-for-the-csrf-anti-forgery-m"
     epic: 2
