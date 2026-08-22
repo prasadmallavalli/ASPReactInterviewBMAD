@@ -294,6 +294,36 @@ So that only authenticated requests from the trusted client can modify data.
 
 A React app lists, creates, edits, and deletes Products against the protected API, with loading/error states and resilient network calls. Covers FR5; NFR2; binds AD-7. Scoped to Products only — no Category management UI.
 
+### Story 3.0: Minimal Login Form (Epic 3 prerequisite)
+
+**Retro reconciliation (Epic 3, Finding L, added 2026-08-22):** this story existed and shipped from the start of Epic 3's implementation — delivered as an ad-hoc, unnumbered spec (`spec-epic-3-prereq-login-form.md`) after Story 3.3's own drafting surfaced that no story anywhere specified how the frontend would obtain the authenticated, CSRF-token-bearing session Epic 2's backend requires for every mutation. This entry formally records it as delivered Epic 3 scope, closing the gap between "Epic 2 built auth" and "Epic 3 assumes auth exists" that a reader of this file alone would otherwise see with no visible bridge.
+
+As a user,
+I want to log in before I can manage products,
+So that Create/Edit/Delete have the authenticated, CSRF-protected session Epic 2 requires.
+
+**Acceptance Criteria:**
+
+**Given** the app mounts and a session check (`GET /api/auth/me`) is in flight
+**When** rendering
+**Then** a brief loading indicator is shown — neither the login form nor the product views
+
+**Given** no existing session (`/me` → 401)
+**When** the session check resolves
+**Then** the login form is shown
+
+**Given** a valid existing session (`/me` → 200)
+**When** the session check resolves
+**Then** the product views render directly, login form skipped
+
+**Given** valid credentials submitted
+**When** `POST /api/auth/login` succeeds and the follow-up `/me` re-check (minting the CSRF cookie, Story 2.3) also succeeds
+**Then** the app transitions to authenticated and renders the product views, with no page reload
+
+**Given** invalid credentials or a network/server failure
+**When** login fails
+**Then** a visible inline error is shown and the form stays editable
+
 ### Story 3.1: API Client Foundation & Resilience Layer
 
 As a developer,
