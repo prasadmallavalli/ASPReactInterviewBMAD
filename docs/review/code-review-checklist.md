@@ -2,7 +2,7 @@
 
 Status: Active · Date: 2026-08-20 · Author: Prasadmallavalli
 
-Fifteen items, each derived from a real decision, pattern, or bug in this codebase — not generic "write good code" advice. 11 of the 15 are demonstrated below against a real commit, with an example review comment as if left on that commit; Items 1, 2, 4, and 8 have no real violation on record in this codebase to point at and are left as-is rather than forcing an example.
+Fifteen items, each derived from a real decision, pattern, or bug in this codebase — not generic "write good code" advice. 11 of the 15 are demonstrated below with an example review comment as if left on that finding's commit; one of those 11 (Item 3) predates this repo's git history and is grounded in a saved log instead of a live diff — flagged explicitly where it appears, not glossed over. Items 1, 2, 4, and 8 have no real violation on record in this codebase to point at and are left as-is rather than forcing an example.
 
 **A note on commit granularity:** this repo was `git init`'d partway through the build (see `git log` — `f1bc57f` is a single "Initial commit" bundling everything through Story 2.2's code). Findings attributed to Epic 1 and most of Epic 2 point at that one commit, not a per-story commit, because no finer-grained history exists to point at. Story 2.3 is the actual granularity boundary — it's the first story with its own dedicated commit (`32cfbec`), not Epic 3.
 
@@ -47,7 +47,9 @@ Story 1.5 deliberately registered `IProductRepository` as `AddSingleton` instead
 
 > Item 3: `IProductRepository` is `AddSingleton` here, but it (and everything downstream of it) holds a Scoped `AppDbContext`. Under concurrent requests this captive-dependency pattern will throw `InvalidOperationException` from EF Core's `ConcurrencyDetector` — see AD-4. Should be `AddScoped`.
 
-*This is the finding flagged as the basis for Epic 5's SBI feedback-framework example: a concrete situation (Story 1.5's load test), a specific behavior (the exact misregistration line), and a measured impact (48/50 requests failing, full stack traces) — everything an SBI example needs, already captured with sources.*
+Post-review, `ValidateScopes`/`ValidateOnBuild` were enabled outside Development too (`Program.cs:25-26`), so this class of misregistration now fails fast at startup in any environment — a reader relying on this checklist item alone should know that startup guardrail, not just code-review vigilance, is now a second line of defense.
+
+*Proposed, not yet built: this finding would be a strong basis for a future Epic 5 SBI feedback-framework example — a concrete situation (Story 1.5's load test), a specific behavior (the exact misregistration line), and a measured impact (48/50 requests failing, full stack traces). Flagging the fit now, since Epic 5 doesn't exist yet as of this writing.*
 
 **Item 5 (check-then-act race) — `f1bc57f`, `CategoryService.DeleteAsync` (still present today).**
 
@@ -62,7 +64,7 @@ _unitOfWork.Categories.Remove(category);
 await _unitOfWork.SaveChangesAsync(cancellationToken);
 ```
 
-> Item 5: `HasProductsAsync` can pass, then a `Product` insert lands before `SaveChangesAsync` commits the delete. The DB's `Restrict` FK still blocks the actual delete, but the caller gets an unhandled 500 instead of a clean 409 in that window. Worth a Domain-level exception type Infrastructure can translate — see AD-2's constraint on why `CategoryService` can't just catch `DbUpdateException` directly.
+> Item 5: `HasProductsAsync` can pass, then a `Product` insert lands before `SaveChangesAsync` commits the delete. The DB's `Restrict` FK still blocks the actual delete, but the caller gets an unhandled 500 (shaped as ProblemDetails, since `UseExceptionHandler()` was added during review — not a raw crash) instead of a clean 409 in that window. Worth a Domain-level exception type Infrastructure can translate — see AD-2's constraint on why `CategoryService` can't just catch `DbUpdateException` directly, and [ADR-005](../adr/005-category-delete-conflict-no-cascade.md) for the full reasoning behind this endpoint's 409-vs-cascade design.
 
 Already logged: `deferred-work.md` (Story 1.2 section). Re-verified present in the current tree while writing this checklist — still open, not a stale claim.
 

@@ -351,3 +351,9 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-architecture-decision-records.md`
   summary: Every ADR's Consequences section buries its open, unresolved gaps (the check-then-act 500-instead-of-409 races, the two validation gaps, the missing DI regression test) inside prose rather than a discrete, scannable "Known Issues" list, making them easy to skim past as accepted tradeoffs rather than still-open defects.
   evidence: Flagged by the blind-hunter review of the ADR set. Real readability concern across all 6 files; restructuring every Consequences section is a formatting decision affecting the whole set, not a single-file patch — worth doing together if the ADR set is revised again.
+
+## Deferred from: Epic 4 retrospective cross-document review (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-deliberate-di-lifetime-bug-reproduce-observe-fix.md`
+  summary: `story-1-5-di-bug-log-excerpt.md` cites the DI-lifetime fix at "`src/Api/Program.cs` line 42" — the actual `AddScoped<IProductRepository, ProductRepository>()` registration is now at line 85, since later stories added code above it in `Program.cs`. No document that links this log excerpt (ADR-006, the code review checklist, the mentoring note) flags that the line number has drifted.
+  evidence: Flagged by the edge-case-hunter lens during Epic 4's retrospective, re-verified against the current `src/Api/Program.cs`. Pre-existing since Story 1.5 (Epic 1), not introduced by Epic 4 — the log excerpt is a historical record that shouldn't be edited to "correct" a line number that was accurate at the time it was written; a caveat note at the citing end is the honest fix, not attempted here since it touches three separate Epic 4 documents for a low-impact drift.

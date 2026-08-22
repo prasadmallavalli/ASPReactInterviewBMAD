@@ -1,8 +1,10 @@
 # Architecture Decision Records
 
-Real decisions made while building Epics 1-3 of ASPFullStackBMAD. Each record follows Context / Decision / Alternatives / Consequences and traces to a real spec, code review finding, or bug reproduction — see each file for its sources.
+Real decisions made while building Epics 1-2 of ASPFullStackBMAD (documented in Story 4.1, 2026-08-20). Each record follows Context / Decision / Alternatives / Consequences and traces to a real spec, code review finding, or bug reproduction — see each file for its sources.
 
-Decided during Epics 1-3 (2026-08-18 to 2026-08-20) by Prasadmallavalli (solo project — no separate review board).
+Decided during Epics 1-2 (2026-08-18 to 2026-08-19) by Prasadmallavalli (solo project — no separate review board). No Epic 3 (React frontend) decision has its own ADR yet.
+
+**Known gap:** the Story 2.3 CSRF/anti-forgery mechanism — introduced specifically to close the CSRF exposure [ADR-003](003-httponly-cookie-token-storage.md)'s cookie decision opened — has no ADR of its own. Logged in [`deferred-work.md`](../../_bmad-output/implementation-artifacts/deferred-work.md) as a 7th-ADR candidate, deliberately left out of this set's approved 4-6 scope.
 
 To add a new ADR: copy the Context/Decision/Alternatives/Consequences shape from any file here, number it `NNN-slug.md` continuing from the highest existing number, and add a row to the table below.
 

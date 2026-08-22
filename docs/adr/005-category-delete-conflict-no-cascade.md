@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-18 (Story 1.1-1.2) · Deciders: Prasadmallavalli
+This is the writeup for AD-10 in `ARCHITECTURE-SPINE.md`.
 Related: [ADR-001](001-repository-and-unit-of-work.md) (same unhandled-500 gap in Consequences, from the opposite direction)
 
 ## Context
@@ -20,5 +21,5 @@ Deleting a `Category` that still has `Product` rows returns `409 Conflict` from 
 ## Consequences
 
 - No silent data loss: a Category with Products can never be deleted by accident, and the 409 response is deterministic and easy to test.
-- The explicit-check approach has a genuine, documented gap: [`deferred-work.md`](../../_bmad-output/implementation-artifacts/deferred-work.md) logs a check-then-act race where `HasProductsAsync` can pass, then a Product insert lands before the delete's `SaveChangesAsync` commits — the database's `Restrict` FK still prevents the row from actually being deleted, but the request surfaces as an unhandled `500` instead of a clean `409` in that narrow window. The "correct" fix (a Domain-level exception type that Infrastructure translates the caught EF exception into) was identified during review but not built — it's a small design decision outside the story's approved scope, so the gap remains open today with no tracked ticket beyond that log entry.
+- The explicit-check approach has a genuine, documented gap: [`deferred-work.md`](../../_bmad-output/implementation-artifacts/deferred-work.md) logs a check-then-act race where `HasProductsAsync` can pass, then a Product insert lands before the delete's `SaveChangesAsync` commits — the database's `Restrict` FK still prevents the row from actually being deleted, but the request surfaces as an unhandled `500` (shaped as ProblemDetails, since `UseExceptionHandler()` was added during review — not a raw, unformatted crash) instead of a clean `409` in that narrow window. The "correct" fix (a Domain-level exception type that Infrastructure translates the caught EF exception into) was identified during review but not built — it's a small design decision outside the story's approved scope, so the gap remains open today with no tracked ticket beyond that log entry.
 - There is no partial-cascade option (e.g. reassigning orphaned Products to an "Uncategorized" category) — the only two states are "delete is allowed" or "delete is rejected outright," which is a real product-scope simplification, not just an implementation detail.
