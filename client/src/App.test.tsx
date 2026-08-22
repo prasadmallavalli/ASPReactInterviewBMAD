@@ -232,6 +232,127 @@ describe('App / AuthGate', () => {
     expect(mockedApiFetch.mock.calls.length).toBe(callsBeforeCancel);
   });
 
+  // Retro fix (Epic 3, Finding D): the composed login -> app UI transition
+  // was never exercised by any automated test -- every other scenario here
+  // mocks /api/auth/me as already-200 at mount, LoginForm.test.tsx mocks
+  // useAuth() entirely, and AuthContext.test.tsx only drives login() through
+  // a standalone probe, never the real LoginForm. This starts genuinely
+  // unauthenticated, submits the real LoginForm, lets AuthContext's real
+  // two-step login() (POST /api/auth/login, then a /me re-check for the
+  // XSRF-TOKEN cookie) run, confirms AuthGate swaps the login form out for
+  // the product views, then continues into the same create -> edit -> delete
+  // cycle the fully-authenticated test below covers -- proving the seam
+  // between Epic 2's auth and Epic 3's product UI holds under the sequence
+  // that actually follows it in the real app, not just in isolation.
+  it('logs in through the real LoginForm/AuthContext flow, then completes create -> edit -> delete', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const category: CategoryDto = { id: 1, name: 'Widgets' };
+    const createdProduct: ProductDto = { id: 99, name: 'New Product', price: 9.99, categoryId: 1 };
+    const updatedProduct: ProductDto = { ...createdProduct, name: 'Updated Product', price: 15 };
+    let meCallCount = 0;
+    let productListFetchCount = 0;
+
+    mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+
+      if (path === '/api/auth/login' && method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/auth/me') {
+        meCallCount += 1;
+        // 1st (mount): no session yet -> login form. 2nd (post-login
+        // re-check, minting XSRF-TOKEN): now authenticated.
+        if (meCallCount === 1) {
+          return Promise.resolve({ ok: false, status: 401, problem: null, networkError: false });
+        }
+        return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+      }
+      if (path === '/api/categories') {
+        return Promise.resolve({ ok: true, status: 200, data: [category] });
+      }
+      if (path === '/api/products' && method === 'POST') {
+        return Promise.resolve({ ok: true, status: 201, data: createdProduct });
+      }
+      if (path === '/api/products/99' && method === 'PUT') {
+        return Promise.resolve({ ok: true, status: 200, data: updatedProduct });
+      }
+      if (path === '/api/products/99' && method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204, data: undefined });
+      }
+      if (path === '/api/products') {
+        productListFetchCount += 1;
+        const data =
+          productListFetchCount === 1
+            ? []
+            : productListFetchCount === 2
+              ? [createdProduct]
+              : productListFetchCount === 3
+                ? [updatedProduct]
+                : [];
+        return Promise.resolve({ ok: true, status: 200, data });
+      }
+      return Promise.resolve({ ok: false, status: 404, problem: null, networkError: false });
+    });
+
+    render(<App />);
+
+    // Real login, through the real LoginForm + AuthContext.login().
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /log in/i })).toBeInTheDocument();
+    });
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'correct-password');
+    await user.click(screen.getByRole('button', { name: /log in/i }));
+
+    // AuthGate swaps the login form out for the product views once
+    // AuthContext's two-step login() flow (login POST + /me re-check) both
+    // resolve -- no mocked substitute for either.
+    await waitFor(() => {
+      expect(screen.getByText(/no products/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('heading', { name: /log in/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+    expect(meCallCount).toBe(2);
+
+    // Create.
+    await user.type(screen.getByLabelText(/name/i), 'New Product');
+    await user.type(screen.getByLabelText(/price/i), '9.99');
+    await user.click(screen.getByRole('button', { name: /add product/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('New Product')).toBeInTheDocument();
+    });
+
+    // Edit.
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('New Product');
+    });
+    await user.clear(screen.getByLabelText(/name/i));
+    await user.type(screen.getByLabelText(/name/i), 'Updated Product');
+    await user.clear(screen.getByLabelText(/price/i));
+    await user.type(screen.getByLabelText(/price/i), '15');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Updated Product')).toBeInTheDocument();
+    });
+
+    // Delete.
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(window.confirm).toHaveBeenCalledWith('Delete "Updated Product"?');
+    await waitFor(() => {
+      expect(screen.getByText(/no products/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Updated Product')).not.toBeInTheDocument();
+
+    // The session was only ever checked twice across the whole flow (mount
+    // + the one post-login re-check) -- no extra /me calls snuck in during
+    // the create/edit/delete cycle.
+    expect(meCallCount).toBe(2);
+  });
+
   // Story 3.5 AC: the full create -> list -> edit -> delete cycle, exercised
   // end-to-end through the real App (no mocked ProductForm/ProductList/
   // AuthProvider substitutes) -- confirms no page reload (auth is only
