@@ -57,7 +57,7 @@ graph LR
 
 - **Binds:** FR-2, FR-9
 - **Prevents:** captive-dependency bugs (a scoped service silently living as long as a singleton)
-- **Rule:** `DbContext` and repositories are `Scoped`. Application services are `Scoped` by default; only framework-provided singletons (logging, `IConfiguration`) are `Singleton`. **Exception, scoped and documented:** FR-2/FR-9 require reproducing a scoped-into-singleton violation exactly once, observing the failure, then fixing it — that reproduction is the deliberate input to the FR-9 postmortem, not a standing exception to this rule.
+- **Rule:** `DbContext` and repositories are `Scoped`. Application services are `Scoped` by default; only genuinely stateless, framework-provided types (logging, `IConfiguration`, `IPasswordHasher<User>`) are `Singleton` (matches [ADR-006](../../../../docs/adr/006-scoped-di-lifetimes.md) and the actual `Program.cs` registration). **Exception, scoped and documented:** FR-2/FR-9 require reproducing a scoped-into-singleton violation exactly once, observing the failure, then fixing it — that reproduction is the deliberate input to the FR-9 postmortem, not a standing exception to this rule.
 
 ### AD-5 — Token storage
 

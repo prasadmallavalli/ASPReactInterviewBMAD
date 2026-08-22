@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 21:13
+last_updated: 08-22-2026 21:14
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -163,7 +163,7 @@ action_items:
       to the sanctioned Singleton-exception list, matching ADR-006 and the actual
       Program.cs registration"
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-08-22.md"
   - id: "epic-4-retro-item-13-create-a-follow-up-story-to-build-the-do"
     epic: 4
