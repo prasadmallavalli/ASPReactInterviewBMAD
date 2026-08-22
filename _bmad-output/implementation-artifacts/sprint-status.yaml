@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 20:45
+last_updated: 08-22-2026 19:49
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -49,7 +49,7 @@ development_status:
   2-1-user-registration: done
   2-2-user-login-jwt-via-httponly-cookie: done
   2-3-protect-mutation-endpoints-scope-cors: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: done
   3-1-api-client-foundation-resilience-layer: done
@@ -173,3 +173,12 @@ action_items:
     owner: "Prasadmallavalli"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-08-22.md"
+  - id: "epic-2-retro-item-14-write-an-adr-for-the-csrf-anti-forgery-m"
+    epic: 2
+    action: "Write an ADR for the CSRF/anti-forgery mechanism (AD-5's second control):
+      why IAntiforgery over a hand-rolled scheme, why token issuance lives in Me()
+      rather than Login (identity-binding pitfall), which endpoints are exempted and
+      why."
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md"
