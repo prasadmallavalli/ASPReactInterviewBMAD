@@ -212,14 +212,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // Cors:FrontendOrigin is read once here and fails fast at startup if
-// missing, mirroring the Jwt:*/connection-string null-guard pattern above —
-// a missing value should never silently fall through to a permissive or
-// broken CORS policy. Default (http://localhost:5173, Vite's dev port) is
+// missing or blank, mirroring the Jwt:*/connection-string null-guard pattern
+// above — a missing value should never silently fall through to a permissive
+// or broken CORS policy. Default (http://localhost:5173, Vite's dev port) is
 // supplied by appsettings.Development.json.
+// Code-review finding, 2026-08-22: the original `?? throw` only rejected a
+// missing key, not an empty/whitespace one — unlike every Jwt:* guard above,
+// which uses IsNullOrWhiteSpace. An empty string would have passed silently
+// and produced a CORS policy matching no real Origin header, breaking the
+// frontend with no fail-fast diagnostic.
 const string CorsPolicyName = "FrontendOnly";
-var corsOrigin = builder.Configuration["Cors:FrontendOrigin"]
-    ?? throw new InvalidOperationException(
+var corsOrigin = builder.Configuration["Cors:FrontendOrigin"];
+if (string.IsNullOrWhiteSpace(corsOrigin))
+{
+    throw new InvalidOperationException(
         "Missing 'Cors:FrontendOrigin'. Local dev supplies it via appsettings.Development.json.");
+}
 
 // WithOrigins(...) (never AllowAnyOrigin()) + AllowCredentials() — required
 // together, since AllowCredentials() is rejected by the CORS spec when

@@ -369,3 +369,57 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md`
   summary: The check-then-act race/DI-lifetime-regression-test gap (previously logged six separate times with "no tracked ticket" across ADR-001, ADR-004, ADR-005, the code review checklist, the post-MVP roadmap, and this ledger) now has an owning backlog story: [`spec-backlog-domain-exception-check-then-act-race-fix.md`](spec-backlog-domain-exception-check-then-act-race-fix.md).
   evidence: Epic 4 retrospective action item `epic-4-retro-item-13`. The new file is an unscheduled backlog proposal, not a frozen dev-ready spec — it consolidates the six prior mentions into one place with a suggested (not approved) fix shape, so future sessions stop re-discovering the same gap from scratch.
+
+## Deferred from: code review of epic-2-context (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No logout endpoint exists — `access_token` is `HttpOnly`, so client-side JS has no way to clear it; the API would need a `POST /api/auth/logout` (or similar) expiring the cookie server-side.
+  evidence: Blind-hunter flagged the gap. Already an established, previously-noted gap from Story 2.2 (no logout flow); out of Epic 2's FR-4 scope (register/login/protect-mutations only).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: JWTs are purely stateless with no revocation/blacklist mechanism — a stolen or compromised token remains valid for its full 60-minute lifetime with no way for the server to invalidate it early.
+  evidence: Blind-hunter flagged the gap. Inherent to the stateless-JWT design AD-5 chose; no FR/NFR requires revocation for this project.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No refresh-token flow — once the access token expires the user must fully re-authenticate, with no silent-renewal path.
+  evidence: Blind-hunter flagged the gap. Already documented as an accepted consequence in [ADR-003](../../docs/adr/003-httponly-cookie-token-storage.md)'s Consequences section.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: `UserService.LoginAsync` only branches on `PasswordVerificationResult.Failed`, never `SuccessRehashNeeded` — a password verified against outdated hasher parameters is silently accepted without ever being re-hashed to current standards.
+  evidence: Flagged independently by blind-hunter and edge-case-hunter. Real but zero live trigger today: `PasswordHasherOptions` are never overridden from their defaults anywhere in this app, so no stored hash can currently differ from what the current hasher would produce. Worth adding if/when hasher options are ever tuned.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: Nothing rate-limits or locks out repeated failed attempts on `/api/auth/login` or `/api/auth/register` — no throttling to blunt credential-stuffing or brute-force attacks.
+  evidence: Blind-hunter flagged the gap. Real, but no FR/NFR currently requires it for this single-developer local project; same class as the already-accepted concurrency-token gap.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No `JwtBearerEvents.OnForbidden` handler — if role/policy-based authorization is ever added, 403 responses would fall back to the framework default instead of the consistent ProblemDetails shape `OnChallenge` already provides for 401s.
+  evidence: Flagged independently by blind-hunter and edge-case-hunter. Currently unreachable: `AddAuthorization()` configures zero policies/roles anywhere in this app, so no code path can produce a 403 today.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: `AuthController.Register` returns `StatusCode(201, user)` with no `Location` header, unlike `CategoriesController`/`ProductsController`'s `Create` actions, which use `CreatedAtAction`.
+  evidence: Blind-hunter flagged the inconsistency. Not a spec violation — Story 2.1's frozen AC only requires "a 201 is returned" with body `{ id, email }`, no Location requirement. A real fix would need a new `GET /api/auth/{id}` user-lookup endpoint to point at, which is its own design/security decision (exposing user lookup by id), not a one-line patch.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No password-reset/forgot-password flow and no email-verification step after registration.
+  evidence: Blind-hunter flagged the gap. Explicitly out of scope — spec-2-1's frozen Never boundary scopes this story to registration only, no password-strength/recovery policy.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: The pipeline calls `UseHttpsRedirection()` but never `UseHsts()` for non-development environments, and no security-headers middleware (e.g. `X-Content-Type-Options`) exists.
+  evidence: Blind-hunter flagged the gap. Real hardening gap for a future real deployment; no current deployment target requires it (this project runs local-dev only today).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No authentication-event audit logging (failed logins, registrations, lockouts) beyond the generic `CorrelationIdMiddleware`.
+  evidence: Blind-hunter flagged the gap. Real, but no FR/NFR requires it; this class of observability tooling is Epic 5 (Engineering Manager Artifacts)/post-MVP-roadmap scope, not Epic 2.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: No controller actions carry `[ProducesResponseType]` attributes for their non-200 outcomes (401/409/400/404), so the generated OpenAPI spec won't document those response shapes even though `AddProblemDetails()` standardizes them at runtime.
+  evidence: Blind-hunter flagged the gap. Cosmetic API-documentation completeness gap; no FR/NFR requires it.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: `UserService.LoginAsync`'s `VerifyHashedPassword` call has no guard against a malformed/corrupted `PasswordHash` value — a `FormatException` would bubble up as an unhandled 500 instead of a clean 401.
+  evidence: Edge-case-hunter flagged the gap. Real but requires an externally-corrupted DB row; `PasswordHash` is only ever written by this app's own `HashPassword` call, with no exposed endpoint that could write a malformed value through the app's own code paths.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: `jwtOptions.ExpiryMinutes` has no upper bound (only `<= 0` is rejected) — an absurdly large config value could overflow `DateTime.UtcNow.AddMinutes(...)`.
+  evidence: Edge-case-hunter flagged the gap independently; already logged verbatim earlier in this ledger (Story 2.2 section) — duplicate confirmation, not a new finding. Low-likelihood misconfiguration, cheap to clamp later.
