@@ -658,6 +658,77 @@ describe('ProductForm (edit mode)', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('');
     expect(onSaved).not.toHaveBeenCalled();
   });
+
+  // Retro fix (Epic 3, Finding E): both stale-response guard tests above
+  // start from mode="edit". Neither exercises the reverse -- and reachable --
+  // sequence: a create submission in flight, then the same persistent
+  // instance switched into editing a product before the POST resolves
+  // (App.tsx's Edit button is never disabled while a create is in flight).
+  // Mirrors the pattern above exactly, starting from mode="create" instead.
+  it('ignores a stale POST response for a create submission after switching to edit mode', async () => {
+    const user = userEvent.setup();
+    const product = makeProduct({ id: 7, name: 'Existing Product', price: 30, categoryId: 2 });
+    const onSavedCreate = vi.fn();
+    const onSavedEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    mockedApiFetch.mockResolvedValueOnce({ ok: true, status: 200, data: categories });
+    const { rerender } = render(<ProductForm mode="create" onSaved={onSavedCreate} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/category/i)).not.toBeDisabled();
+    });
+
+    await user.type(screen.getByLabelText(/name/i), 'New Product');
+    await user.type(screen.getByLabelText(/price/i), '9.99');
+
+    let resolvePost!: (result: Awaited<ReturnType<typeof apiFetch>>) => void;
+    mockedApiFetch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePost = resolve;
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /add product/i }));
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/products',
+      expect.objectContaining({ method: 'POST' }),
+    );
+
+    // Switch the same persistent instance to editing an existing product
+    // before the create's POST resolves -- the same prop change App.tsx's
+    // real onEdit handler produces (no key, so no remount).
+    rerender(
+      <ProductForm
+        mode="edit"
+        initialProduct={product}
+        onSaved={onSavedEdit}
+        onCancel={onCancelEdit}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('Existing Product');
+    });
+    // No categories re-fetch, no new request -- switching targets issues no API call.
+    expect(mockedApiFetch).toHaveBeenCalledTimes(2);
+
+    // The stale create POST now resolves successfully.
+    await act(async () => {
+      resolvePost({ ok: true, status: 201, data: { ...product, id: 99, name: 'New Product' } });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Still showing the edit target's data, still in edit mode -- the stale
+    // create success must not have called either onSaved, nor reset the form.
+    expect(screen.getByLabelText(/name/i)).toHaveValue('Existing Product');
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    expect(onSavedCreate).not.toHaveBeenCalled();
+    expect(onSavedEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
 
 describe('ProductForm price validation', () => {
