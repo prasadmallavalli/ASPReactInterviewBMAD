@@ -1,9 +1,16 @@
-name: CI/CD
+name: CI
 
 # Fulfills the CI pipeline item from docs/eng-mgmt/post-mvp-roadmap.md
 # ("a CI pipeline running dotnet build/dotnet test on every change... and
 # npm run build/npm test alongside it") -- previously logged as a gap, no
 # workflow existed before this one.
+#
+# No deploy job: hosting is a local run + Cloudflare quick tunnel
+# (docs/deployment.md, scripts/run-demo.sh), not a cloud target CI can push
+# to. An earlier Azure App Service + Azure SQL attempt was abandoned after
+# Azure SQL Database provisioning failed (RegionDoesNotAllowProvisioning) in
+# multiple regions on the available subscription -- see docs/deployment.md's
+# "If you want a real hosted deployment later" section.
 
 on:
   push:
@@ -76,42 +83,3 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build # also runs tsc -b, so this is the type-check gate too
-
-  deploy:
-    needs: [backend, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: client/package-lock.json
-
-      - name: Build frontend
-        working-directory: client
-        run: |
-          npm ci
-          npm run build
-
-      - name: Copy frontend build into wwwroot
-        run: |
-          rm -rf src/Api/wwwroot
-          mkdir -p src/Api/wwwroot
-          cp -r client/dist/. src/Api/wwwroot/
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Publish API (with the SPA embedded in wwwroot)
-        run: dotnet publish src/Api/Api.csproj --configuration Release --output ./publish
-
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ vars.AZURE_APP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./publish

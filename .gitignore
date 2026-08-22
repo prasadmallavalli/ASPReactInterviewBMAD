@@ -3,7 +3,7 @@ obj/
 .vs/
 *.user
 src/Api/appsettings.Development.json
-# Built React SPA, copied in by the deploy workflow before `dotnet publish`.
+# Built React SPA, copied in by scripts/run-demo.sh before running the API.
 # The directory itself must exist on disk (wwwroot/.gitkeep, tracked) --
 # ASP.NET Core's Static Web Assets loader throws DirectoryNotFoundException
 # at startup if wwwroot is physically absent, which broke both local `dotnet
@@ -12,3 +12,5 @@ src/Api/appsettings.Development.json
 # are ignored.
 src/Api/wwwroot/*
 !src/Api/wwwroot/.gitkeep
+
+.fake

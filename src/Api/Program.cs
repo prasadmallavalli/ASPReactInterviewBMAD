@@ -329,16 +329,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Serves the built React SPA (client/dist, copied into wwwroot by the CI/CD
-// pipeline before `dotnet publish`) from the same origin as the API — a
-// deliberate deploy-target choice (interview-demo hosting) to keep the
+// Serves the built React SPA (client/dist, copied into wwwroot by
+// scripts/run-demo.sh before this process starts) from the same origin as
+// the API — a deliberate demo-hosting choice (docs/deployment.md: a local
+// run exposed via a Cloudflare quick tunnel, no cloud account) to keep the
 // frontend and API same-site, so the existing SameSite=Strict cookie/CSRF
 // design needs zero rework. UseDefaultFiles() serves wwwroot/index.html for
 // `GET /`; no MapFallbackToFile is needed since this app has no
 // client-side routing (no react-router) for deep-link paths to fall back
-// for. wwwroot does not exist in local dev (nothing copies it there), so
-// this is a harmless no-op locally -- Vite's dev server (localhost:5173)
-// remains the actual local frontend, unchanged.
+// for. wwwroot's directory always exists (wwwroot/.gitkeep is tracked --
+// ASP.NET Core's Static Web Assets loader throws at startup if it's
+// physically absent), but is otherwise empty in ordinary `dotnet run`/test
+// use — Vite's dev server (localhost:5173) remains the actual local
+// frontend outside of a run-demo.sh session.
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
