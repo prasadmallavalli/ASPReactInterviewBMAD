@@ -1,0 +1,52 @@
+# Incident Postmortem: DI Captive-Dependency Failure on `GET /api/products`
+
+Status: Resolved · Incident date: 2026-08-19 · Written: 2026-08-22 · Author: Prasadmallavalli · Severity (hypothetical, see Impact): SEV-1-equivalent
+
+**A framing note before anything else, since this document's honesty depends on it:** this was not a real production outage. It was a deliberate, planned reproduction — Story 1.5 intentionally misregistered a dependency, drove concurrent load at it, and captured the failure on purpose, specifically so this postmortem could be written from a real incident instead of a hypothetical one. The *mechanics* below (root cause, evidence, fix) are exactly what a real production incident report would contain. The *impact* section is deliberately framed as if this had reached production traffic, because that's the exercise this document is doing — walking through what blameless incident response looks like — not a claim that users were actually affected. Anyone discussing this in an interview should say exactly that, up front, the same way this document does.
+
+## Summary
+
+`GET /api/products` failed for the large majority of concurrent requests because `IProductRepository` was registered as a DI `Singleton` while depending on a `Scoped` `AppDbContext`. The captured `AppDbContext` instance was reused, unsafely, across every request after the first — `DbContext` is not thread-safe, so concurrent requests racing on the same instance threw `System.InvalidOperationException` from EF Core's `ConcurrencyDetector`. Reverting the registration to `Scoped` resolved it completely, verified twice under an identical load pattern.
+
+## Impact (framed as production)
+
+Of 50 concurrent `GET /api/products` requests, **48 returned HTTP 500 and 2 returned HTTP 200** — a 96% failure rate under concurrent load, against the app's only content view (the client is a single-view SPA — `AuthGate` renders `ProductForm` + `ProductList` directly, no router, no other pages the endpoint could be a smaller part of). If this registration had shipped and the product-listing page received any real concurrent traffic — multiple users browsing at once, or even one user's page issuing overlapping requests — the measured 96% failure rate is the actual evidence for the blast radius: the app's one content-bearing view would have been effectively unusable under load. Framed as a real incident, that failure rate is consistent with a SEV-1-equivalent classification — the primary (and only) user-facing feature down for the large majority of concurrent users, not a partial degradation.
+
+The failure mode is silent at low traffic — a single user hitting the endpoint alone, one request at a time, would very likely never see it (2 of 50 concurrent requests still succeeded) — which is what makes this class of bug dangerous: it passes casual manual testing and only surfaces under real concurrent load, exactly the condition a pre-release smoke test is least likely to reproduce.
+
+**Sibling registrations, checked:** `ICategoryRepository`, `IUserRepository`, `IUnitOfWork`, and all three application services (`CategoryService`, `ProductService`, `UserService`) are confirmed `AddScoped` in the current `Program.cs` — this was a single misregistered line, not a pattern repeated elsewhere. Blast radius was scoped to `IProductRepository` alone, stated here rather than left implicit.
+
+## Detection
+
+No production monitoring detected this — there is none to have (see Follow-up actions). Detection here was deliberate: the reproduction was run specifically to find this failure, not discovered incidentally. In a real incident, the most likely detection path would have been an elevated 5xx rate on `/api/products` (if alerting existed) or direct user reports of a broken product listing — neither exists in this project today, which is itself part of what this postmortem surfaces.
+
+## Timeline
+
+*(Reproduction steps, narrated as a real incident timeline per this document's stated framing — see the note at the top.)* Reconstructed from Story 1.4's correlation-ID logging (`CorrelationIdMiddleware`), which stamps every request's `ILogger` scope — not from wall-clock timestamps, since the saved log excerpt captures request/trace/span/correlation IDs but not clock time. The sequence:
+
+1. `IProductRepository` registered `AddSingleton<IProductRepository, ProductRepository>()` in `Program.cs` (temporarily, for this reproduction), while `AppDbContext` remained `Scoped` (EF Core's `AddDbContext` default) and `ProductRepository`'s constructor still depended on it.
+2. The API was started with `ASPNETCORE_ENVIRONMENT=Production` specifically to bypass ASP.NET Core's Development-only `ValidateScopes`/`ValidateOnBuild` checks — those would otherwise throw immediately at the first resolution and mask the real, load-dependent race condition this postmortem is about.
+3. 50 concurrent `GET /api/products` requests were fired at the running API (`seq 1 50 | xargs -P 50 -I{} curl ...`). (The API was started without a launch profile, so Kestrel served on its default port 5000 rather than the launch profile's 5087 — a port-only deviation from the original repro command, noted here so the timeline reconciles cleanly against the raw commands in the source log.)
+4. 48 of the 50 requests hit EF Core's `ConcurrencyDetector.EnterCriticalSection()` and failed with `System.InvalidOperationException: A second operation was started on this context instance before a previous operation completed.` Each failed request carried its own distinct correlation ID (this was not one shared failure — 48 independent request pipelines hit the same underlying race). One representative failure, correlation ID `6054e1fe-829f-42b5-9110-56f331c9205e`, has its full stack trace preserved in `story-1-5-di-bug-log-excerpt.md`, alongside 10 more of the 48 failures as a representative sample — the source log itself states it is a partial excerpt, not the complete 48-failure output.
+5. `IProductRepository`'s registration was reverted to `AddScoped`, with a why-comment citing AD-4.
+6. The identical 50-request burst was re-run twice against the fixed registration: **50/50 HTTP 200, zero exceptions, both times.**
+
+## Root cause
+
+`AddSingleton<IProductRepository, ProductRepository>()` made `ProductRepository` — and therefore the `AppDbContext` instance injected into its constructor — live for the entire application lifetime instead of one request's lifetime. The first request to resolve `ProductRepository` captured that request's `AppDbContext` and held it forever (a captive dependency: a longer-lived service holding a reference to a shorter-lived one). Every subsequent request reused that same `ProductRepository` instance and, through it, the same `AppDbContext`. `DbContext` is documented as not thread-safe: two requests calling `_context.Products.AsNoTracking().ToListAsync(...)` on the same instance at the same time raced on EF Core's internal concurrency guard, which throws rather than silently corrupting state.
+
+This is precisely the failure mode this project's DI lifetime rule (AD-4: `DbContext` and repositories are `Scoped`) exists to prevent — see [ADR-006](../adr/006-scoped-di-lifetimes.md) for the full decision record. (Why this is stated as a systems cause, not an individual's: see the closing section.)
+
+## Fix
+
+`IProductRepository`'s registration in `Program.cs` was reverted to `AddScoped<IProductRepository, ProductRepository>()`, with a why-comment citing AD-4 directly in the code. Verified by re-running the identical 50-concurrent-request burst twice: 50/50 succeeded both times, with zero exceptions in the console output.
+
+## Follow-up actions
+
+1. **Done, already shipped:** `ValidateScopes`/`ValidateOnBuild` were enabled outside Development too (`Program.cs`, added during Story 1.5's own review) — this class of misregistration (a longer-lived service capturing a shorter-lived one) now fails fast at container-build time in *any* environment, not just Development, closing the exact gap that let this bug run silently under `ASPNETCORE_ENVIRONMENT=Production` in the first place.
+2. **Open, owner: Prasadmallavalli:** no automated regression test or DI-container lifetime assertion exists anywhere in the solution to catch a future revert of this specific registration — a silent regression would only be caught by `ValidateOnBuild` firing the next time someone actually starts the app outside Development, or by a human reviewing the diff. Tracked in [`deferred-work.md`](../../_bmad-output/implementation-artifacts/deferred-work.md) (Story 1.5 section) and traces concretely to [Item 3 of the Story 4.3 code review checklist](../review/code-review-checklist.md) (DI lifetime), which independently flags the same gap and is also this bug's basis for Epic 5's SBI feedback example — the same underlying finding grounding two different EM-track artifacts, not a coincidence.
+3. **Open, owner: Prasadmallavalli:** no monitoring or alerting exists for this API at all — no error-rate tracking on `/api/products` or any other endpoint. A real production deployment of this pattern would have relied entirely on user reports or a human reviewing logs by hand to detect it; there is no path to finding out faster. Not tracked anywhere else in this project's documentation prior to this postmortem — a genuinely new finding, not a restatement of an existing one.
+
+## Why this is a *blameless* postmortem
+
+Nothing above assigns cause to an individual's skill, effort, or judgment. The registration mismatch is a systems-and-process gap: nothing in the toolchain caught a Singleton-holding-Scoped mistake before this reproduction deliberately went looking for one. The fix is a config change; the durable prevention is the `ValidateOnBuild` guardrail (already shipped), the still-missing regression test, and the still-missing alerting (both tracked above) — process/tooling investments, not a note to "be more careful." That distinction is the entire point of a blameless format: it routes energy into the guardrail that stops the *next* engineer from making the same mistake, rather than into finding fault with the one who made it this time.
