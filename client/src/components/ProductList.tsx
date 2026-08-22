@@ -141,8 +141,22 @@ export function ProductList({ onEdit, busyProductId, refreshSignal }: ProductLis
   // without unmounting. `deletingIdsRef`/`deletingIds` live outside this
   // effect entirely, so they're untouched by a refreshSignal-triggered
   // refetch, unlike the full remount this replaced.
+  //
+  // Code-review finding, 2026-08-22 (edge-case-hunter): a refreshSignal-
+  // triggered run previously never set isFetching true (only handleRetry
+  // did), so the Retry button stayed clickable during that automatic
+  // refetch if the list was showing its error state -- a click there would
+  // fire a second, wasteful concurrent fetchProducts() call. isFirstRunRef
+  // skips the extra call on the very first mount (isFetching is already
+  // true from its initializer) but sets it on every subsequent,
+  // refreshSignal-triggered run, matching handleRetry's own pattern.
+  const isFirstRunRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
+    if (!isFirstRunRef.current) {
+      setIsFetching(true);
+    }
+    isFirstRunRef.current = false;
     fetchProducts();
     return () => {
       mountedRef.current = false;

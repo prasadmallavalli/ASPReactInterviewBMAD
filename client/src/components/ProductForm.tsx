@@ -6,6 +6,13 @@ import type { CategoryDto, ProductDto } from '../api/types';
 import './ProductForm.css';
 
 /**
+ * Ties the JS-level upper-bound guard to the native `max` attribute below --
+ * code-review finding, 2026-08-22: previously hardcoded separately in both
+ * places, free to drift out of sync on a future change.
+ */
+const MAX_PRICE = 1_000_000;
+
+/**
  * The Category dropdown's three states: `GET /api/categories` in flight,
  * failed (form disabled per this story's Always boundary -- no retry, reload
  * the page), or loaded with the list used both to populate the dropdown and
@@ -230,7 +237,7 @@ export function ProductForm(props: ProductFormProps) {
       !trimmedName ||
       !Number.isFinite(parsedPrice) ||
       parsedPrice <= 0 ||
-      parsedPrice > 1_000_000 ||
+      parsedPrice > MAX_PRICE ||
       Number.isNaN(parsedCategoryId)
     ) {
       setError('Please enter a valid name, price, and category.');
@@ -394,7 +401,7 @@ export function ProductForm(props: ProductFormProps) {
             onChange={(event) => setPrice(event.target.value)}
             required
             min="0.01"
-            max="1000000"
+            max={MAX_PRICE}
             step="0.01"
             disabled={disabled}
           />

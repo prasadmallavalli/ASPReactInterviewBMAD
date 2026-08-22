@@ -372,6 +372,64 @@ describe('ProductList', () => {
       expect(screen.getByText('Gadget')).toBeInTheDocument();
     });
 
+    // Code-review finding, 2026-08-22: `isDeleting` (per-row, from this
+    // component's own state) and `busyProductId` (from App.tsx's
+    // editingProduct, via props) are two independently-derived disabled
+    // states -- Finding A's whole point -- but no test previously exercised
+    // them active on two *different* rows at once. Confirms neither state
+    // leaks onto the other row: the row being edited is untouched by the
+    // unrelated row's in-flight delete, and vice versa.
+    it("keeps a busyProductId row's disabled state independent of a different row's in-flight delete", async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [
+        makeProduct({ id: 1, name: 'Widget' }),
+        makeProduct({ id: 2, name: 'Gadget' }),
+      ];
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return new Promise<ApiResult<unknown>>(() => {}); // never resolves for this test
+        }
+        return Promise.resolve({ ok: true, status: 200, data: products });
+      });
+
+      // Product 2 (Gadget) is the one open in the edit form; Product 1
+      // (Widget) is the one whose delete is about to go in flight.
+      render(<ProductList onEdit={vi.fn()} busyProductId={2} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Gadget')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+      const deleteButtonsBefore = screen.getAllByRole('button', { name: /^delete$/i });
+      // Before any delete starts: row 1 (Widget) fully interactive, row 2
+      // (Gadget, busyProductId) only Delete disabled.
+      expect(editButtons[0]).not.toBeDisabled();
+      expect(deleteButtonsBefore[0]).not.toBeDisabled();
+      expect(editButtons[1]).not.toBeDisabled();
+      expect(deleteButtonsBefore[1]).toBeDisabled();
+
+      await user.click(deleteButtonsBefore[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /deleting/i })).toBeDisabled();
+      });
+
+      // Row 1 (Widget, now mid-delete): Edit disabled, Delete shows
+      // "Deleting…". Row 2 (Gadget, busyProductId): unaffected by row 1's
+      // delete -- Edit still enabled, Delete still disabled for its own
+      // (busyProductId) reason, not relabeled "Deleting…".
+      const editButtonsDuring = screen.getAllByRole('button', { name: /^edit$/i });
+      const deleteButtonsDuring = screen.getAllByRole('button', { name: /delete|deleting/i });
+      expect(editButtonsDuring[0]).toBeDisabled();
+      expect(deleteButtonsDuring[0]).toHaveTextContent(/deleting/i);
+      expect(editButtonsDuring[1]).not.toBeDisabled();
+      expect(deleteButtonsDuring[1]).toBeDisabled();
+      expect(deleteButtonsDuring[1]).toHaveTextContent(/^delete$/i);
+    });
+
     // Review fix: a second click on the *same* row's Delete button before
     // the first DELETE resolves (and before React has re-rendered the
     // now-disabled button) must not fire a second request -- this is the

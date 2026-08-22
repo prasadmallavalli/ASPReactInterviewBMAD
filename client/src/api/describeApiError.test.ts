@@ -30,6 +30,20 @@ describe('describeApiError', () => {
     ).toBe('Email already registered');
   });
 
+  // Code-review finding, 2026-08-22: the title-only case above was covered,
+  // but detail-only (no title) was not -- an asymmetric gap in the
+  // parts.filter(...).join(': ') logic's coverage.
+  it('returns only problem.detail when title is absent, with no stray separator', () => {
+    expect(
+      describeApiError({
+        ok: false,
+        status: 400,
+        problem: { detail: 'Category 3 does not exist.' },
+        networkError: false,
+      }),
+    ).toBe('Category 3 does not exist.');
+  });
+
   it('falls back to a status-code message when there is no ProblemDetails body', () => {
     expect(
       describeApiError({ ok: false, status: 500, problem: null, networkError: false }),

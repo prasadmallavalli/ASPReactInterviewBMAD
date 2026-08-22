@@ -423,3 +423,33 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
   summary: `jwtOptions.ExpiryMinutes` has no upper bound (only `<= 0` is rejected) — an absurdly large config value could overflow `DateTime.UtcNow.AddMinutes(...)`.
   evidence: Edge-case-hunter flagged the gap independently; already logged verbatim earlier in this ledger (Story 2.2 section) — duplicate confirmation, not a new finding. Low-likelihood misconfiguration, cheap to clamp later.
+
+## Deferred from: code review of epic 3 retro-fix diff (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: The row currently disabled via `busyProductId` (being edited) gives no visible/ARIA explanation for why its Delete button is disabled — unlike the in-flight-delete case, which swaps its label to "Deleting…".
+  evidence: Blind-hunter flagged the gap. Matches the same class of a11y/focus-management gap already deferred against `ProductList`/`LoginForm`/`ProductForm`/`CreateProductForm` throughout Epic 3; no AC requires WCAG-level coverage for this MVP list.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: No row-level visual indicator (e.g. an "Editing…" label swap) shows which row is currently open in the edit form — only the disabled Delete button hints at it, and only if noticed.
+  evidence: Blind-hunter flagged the gap. Same class as the item above; same disposition.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: The validation error message stays generic ("Please enter a valid name, price, and category.") after adding the price upper-bound check — a user entering a too-large price gets the same vague message as any other validation failure.
+  evidence: Blind-hunter flagged the gap. Matches the already-established "one generic form-level error" pattern deliberately chosen for this MVP form (same precedent already accepted for every other ProductForm/LoginForm validation case).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: `AuthContext`'s `requestIdRef` addition (Finding F) adds a ref and extra branching purely to make an existing doc comment's parity claim true, rather than fixing an observed bug — correcting the comment to describe what `mountedRef` alone actually provides would have been the simpler alternative.
+  evidence: Blind-hunter flagged the design critique. This was the retro's own explicitly-requested fix shape (action item: "Add a requestIdRef-style generation-counter guard to AuthContext's mount effect, matching ProductList's pattern") and was implemented exactly as asked; revisiting the shape of an already-decided action item needs a human call, not a silent patch.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: Minor mock-setup duplication between the new "logs in through the real LoginForm/AuthContext flow" integration test and the pre-existing Story 3.5 full-cycle test in `App.test.tsx` — both hand-roll a similar `mockedApiFetch.mockImplementation` path/method switch.
+  evidence: Blind-hunter flagged the duplication. Real but low-value test-code DRY concern; matches the already-accepted "not worth extracting yet" precedent logged elsewhere in this ledger (e.g. the 3.4 `describeError` two-copy deferral before it crossed into `describeApiError` extraction territory).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: No test confirms that switching directly from editing product A to editing product B (without an intervening Cancel/create step) re-triggers the scroll-into-view/focus effect — only create→edit is covered.
+  evidence: Blind-hunter flagged the gap. Real but low value: the underlying trigger (a `targetKey` change) is the identical mechanism already covered by the existing stale-response tests' edit-A→edit-B transitions; only the focus/scroll side effect specifically lacks its own edit→edit assertion.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
+  summary: If the product currently open in the edit form is deleted/modified elsewhere and a `refreshSignal`-triggered refetch removes it from the list, `busyProductId` still points at a now-nonexistent id and the form keeps showing stale data with no "this product no longer exists" handling.
+  evidence: Blind-hunter flagged the gap. Not new — this is the same residual gap the epic-3 retro's own Finding A text already named ("a 404 on Save, handled gracefully but with no escape besides Cancel"); this diff closes the two concrete races Finding A described but doesn't add product-existence revalidation, which was never in its scope.

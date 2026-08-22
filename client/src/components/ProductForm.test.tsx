@@ -334,6 +334,15 @@ describe('ProductForm (edit mode)', () => {
   // directly in edit mode -- only on a genuine create->edit/edit->edit
   // transition, which is the actual "clicked Edit" scenario.
   it('moves focus to the form container when switching into edit mode', async () => {
+    // Code-review finding, 2026-08-22: jsdom doesn't implement
+    // scrollIntoView at all (not even as a no-op), which is exactly why
+    // the component optional-chains the call -- but that also meant this
+    // test could pass even if the scrollIntoView call were silently
+    // dropped from the component. Stubbing it here lets the assertion
+    // below prove that half of the fix actually fires, not just focus.
+    const scrollIntoViewSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
     const product = makeProduct({ id: 5, name: 'Existing Widget', price: 12.5, categoryId: 2 });
     mockedApiFetch.mockResolvedValueOnce({ ok: true, status: 200, data: categories });
     const { container, rerender } = render(<ProductForm mode="create" onSaved={vi.fn()} />);
@@ -349,6 +358,10 @@ describe('ProductForm (edit mode)', () => {
       expect(screen.getByLabelText(/name/i)).toHaveValue('Existing Widget');
     });
     expect(document.activeElement).toBe(container.querySelector('.product-form'));
+    expect(scrollIntoViewSpy).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+
+    // @ts-expect-error -- removing the test-only stub; not part of jsdom's real API surface.
+    delete Element.prototype.scrollIntoView;
   });
 
   // Retro fix (Epic 3, Finding C): in edit mode, a failed categories fetch
