@@ -364,10 +364,10 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
   summary: `SameSite=Strict` on the `access_token` cookie may not survive a genuinely cross-domain (not just cross-port) frontend/API deployment — `SameSite=Strict` cookies are never sent on requests where the top-level site differs, which is a stricter bar than just "different origin."
   evidence: Blind-hunter flagged the gap during code review. Works correctly today because the frontend and API are same-site (`localhost` at different ports, per the CORS config); no AC or deployment target currently requires a cross-domain split. Worth revisiting only if frontend and API ever land on genuinely different registrable domains in a real deployment.
 
-## Epic 2 retrospective follow-up (2026-08-22)
+## Epic 4 retrospective follow-up (2026-08-22)
 
-- source_spec: `_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md`
-  summary: The check-then-act race/DI-lifetime-regression-test gap (previously logged six separate times with "no tracked ticket" across ADR-001, ADR-004, ADR-005, the code review checklist, the post-MVP roadmap, and this ledger) now has an owning backlog story: [`spec-backlog-domain-exception-check-then-act-race-fix.md`](spec-backlog-domain-exception-check-then-act-race-fix.md).
+- source_spec: `_bmad-output/implementation-artifacts/epic-4-retro-2026-08-22.md`
+  summary: The check-then-act race/DI-lifetime-regression-test gap (previously logged six separate times with "no tracked ticket" across ADR-001, ADR-005, the code review checklist, the post-MVP roadmap, this ledger, and the Epic 4 retrospective -- plus ADR-006 for the DI-lifetime half specifically) now has an owning backlog story: [`spec-backlog-domain-exception-check-then-act-race-fix.md`](spec-backlog-domain-exception-check-then-act-race-fix.md).
   evidence: Epic 4 retrospective action item `epic-4-retro-item-13`. The new file is an unscheduled backlog proposal, not a frozen dev-ready spec — it consolidates the six prior mentions into one place with a suggested (not approved) fix shape, so future sessions stop re-discovering the same gap from scratch.
 
 ## Deferred from: code review of epic-2-context (2026-08-22)
@@ -453,3 +453,33 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md`
   summary: If the product currently open in the edit form is deleted/modified elsewhere and a `refreshSignal`-triggered refetch removes it from the list, `busyProductId` still points at a now-nonexistent id and the form keeps showing stale data with no "this product no longer exists" handling.
   evidence: Blind-hunter flagged the gap. Not new — this is the same residual gap the epic-3 retro's own Finding A text already named ("a 404 on Save, handled gracefully but with no escape besides Cancel"); this diff closes the two concrete races Finding A described but doesn't add product-existence revalidation, which was never in its scope.
+
+## Deferred from: code review of epic 4 retro-fix diff (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: The backlog story's `context: []` frontmatter is left empty despite the document heavily cross-referencing ADR-001, ADR-005, ADR-006, the code review checklist, the post-MVP roadmap, and the Epic 4 retrospective in prose.
+  evidence: Blind-hunter flagged the gap. Real, but the document explicitly declares itself "not a frozen, dev-ready spec" — populating the machine-readable `context` list the way frozen story specs do is a polish item for whoever eventually renegotiates this into a real spec, not required for its current purpose.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: `baseline_commit: ''` is empty, yet the document cites exact line numbers (e.g. `CategoryService.cs:68-74`) as evidence — those references will silently drift as the file changes, with nothing to catch it.
+  evidence: Blind-hunter flagged the gap. Real; not fixable meaningfully until the story is actually picked up (a baseline commit set now would just be "whatever HEAD is today," not a meaningful anchor for unscheduled backlog work).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: No "next steps"/owner/trigger section describes when or by whom this backlog item should be picked up and renegotiated into a frozen spec.
+  evidence: Blind-hunter flagged the gap. Real risk (an unscheduled backlog item with no re-check trigger can become exactly the kind of orphaned artifact it was created to prevent), but this project has no backlog-grooming cadence/process to hook such a trigger into yet — a process gap upstream of this one document.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: None of the six original source documents (ADR-001, ADR-005, ADR-006, the code review checklist, the post-MVP roadmap) were updated to link forward to the new backlog story now that it exists.
+  evidence: Blind-hunter flagged the gap. Real — a reader hitting any of those documents first still only sees "no tracked ticket," not a pointer to this consolidated backlog item. Touching all five/six documents is a larger edit than this review's own scope; worth doing together in one pass if this backlog item is ever picked up.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: The proposed exception name `ConcurrentModificationException` risks confusion with EF Core's own `DbUpdateConcurrencyException`, which has a distinct meaning (optimistic-concurrency-token mismatch) unrelated to the FK/unique-constraint violations this document actually addresses.
+  evidence: Blind-hunter flagged the naming-collision risk. The document already flags the name itself as "an open design decision"; this is additional context for whoever makes that decision, not a defect in the document as written.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-backlog-domain-exception-check-then-act-race-fix.md`
+  summary: The document explains why an optimistic-concurrency-token approach was rejected (Out of scope section) but never discusses a transaction-isolation-level fix (e.g. serializable transactions around the check-then-act sequence) as an alternative to catch-and-translate.
+  evidence: Blind-hunter flagged the gap. Real alternative worth naming, but this is a backlog proposal meant to be renegotiated, not a final design — the missing alternative is something for that renegotiation to consider, not something this document needs to resolve itself.
+
+- source_spec: `_bmad-output/planning-artifacts/architecture/architecture-ASPFullStackBMAD-2026-08-18/ARCHITECTURE-SPINE.md`
+  summary: AD-4's rule text (just corrected to list `IPasswordHasher<User>` as a sanctioned Singleton exception) has no cross-reference forward to the new backlog story that would eventually give this rule a real DI-lifetime regression test.
+  evidence: Blind-hunter flagged the gap. Real but minor — AD-4's text is about the DI lifetime *rule*, not a running log of test-coverage gaps against it; the regression-test gap is already tracked in the backlog story itself and in ADR-006's Consequences.

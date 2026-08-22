@@ -14,7 +14,7 @@ Not a frozen, dev-ready spec -- an unscheduled backlog story, created per the [E
 
 ## Problem
 
-Two real, still-open gaps have each been independently identified and logged by name six times across this project's own documentation (ADR-001, ADR-004, ADR-005, the code review checklist, the post-MVP roadmap, and `deferred-work.md`), with every single mention ending in some version of "not built, no tracked ticket" -- until now, nothing ever converted that honesty into an actual piece of backlog work.
+Two real, still-open gaps have each been independently identified and logged by name six times across this project's own documentation (ADR-001, ADR-005, the code review checklist, the post-MVP roadmap, `deferred-work.md`, and the Epic 4 retrospective -- see Evidence below), with every single mention ending in some version of "not built, no tracked ticket" -- until now, nothing ever converted that honesty into an actual piece of backlog work.
 
 **1. Check-then-act races surface as raw 500s instead of clean 409/400s**, in three independently-discovered locations, all the same root cause:
 
@@ -26,7 +26,7 @@ Every one of these was deliberately left open at the time because catching `DbUp
 
 **2. No automated regression test guards the Story 1.5 DI-lifetime misregistration class.** Story 1.5 deliberately reproduced `IProductRepository` registered `AddSingleton` instead of `AddScoped`, observed 48/50 concurrent requests fail, and fixed it. Post-review, `ValidateScopes`/`ValidateOnBuild` were enabled outside Development too, so this class of misregistration now fails fast at startup in any environment -- but nothing in the automated test suite asserts that guardrail actually fires. `deferred-work.md`'s Story 1.5 section and ADR-006's Consequences both name this as still open.
 
-## Evidence (all six "no tracked ticket" callouts)
+## Evidence (the six check-then-act "no tracked ticket" callouts, plus the DI-lifetime one)
 
 - [ADR-001](../../docs/adr/001-repository-and-unit-of-work.md) Consequences -- names all three races, cites `deferred-work.md`.
 - [ADR-005](../../docs/adr/005-category-delete-conflict-no-cascade.md) Consequences -- the Category delete race specifically, "no tracked ticket beyond that log entry."
@@ -34,12 +34,13 @@ Every one of these was deliberately left open at the time because catching `DbUp
 - [Post-MVP roadmap](../../docs/eng-mgmt/post-mvp-roadmap.md) -- "closing the check-then-act races (checklist Item 5 -- three still-open instances)."
 - `deferred-work.md` -- three separate entries (Story 1.2, Story 1.3, Story 2.1 sections) for the Category, Product, and User races respectively, plus the Story 1.5 DI-lifetime entry.
 - [Epic 4 retrospective](epic-4-retro-2026-08-22.md) -- the cross-document consistency finding that surfaced all of the above being logged six times with zero owners.
+- [ADR-006](../../docs/adr/006-scoped-di-lifetimes.md) Consequences -- names the missing DI-lifetime regression test specifically (the second gap this backlog item covers), separately from the six check-then-act-race callouts above.
 
 ## Proposed scope (not yet approved -- a starting point for renegotiation)
 
 **Domain-level exception type:**
 - A new exception type in `Domain` (e.g. `ConcurrentModificationException` or similar -- naming is an open design decision) that `Infrastructure`'s repository/unit-of-work implementations throw when a `DbUpdateException` is caught wrapping a constraint violation (FK `Restrict` block, unique-index violation).
-- `Infrastructure` catches the EF-specific exception and translates it -- `Application` and `Api` only ever see the Domain type, preserving AD-2's "Application never depends on EF Core" boundary.
+- `Infrastructure` catches the EF-specific exception and translates it -- `Application` and `Api` only ever see the Domain type, preserving AD-2's "Application never depends on EF Core" boundary. Code-review finding, 2026-08-22: the translation must be narrow -- only a `DbUpdateException` actually wrapping a constraint violation (FK/unique-index) should become the Domain exception; any other cause (e.g. a transient connection failure) must re-throw as-is, so it still surfaces as a 500 rather than being misclassified as a clean 409/400 and hiding a real infrastructure error.
 - Each of the three call sites (`CategoryService.DeleteAsync`, `ProductService.CreateAsync`/`UpdateAsync`, `UserService.RegisterAsync`) catches the Domain exception and maps it to the same clean 409/400 `ProblemDetails` response its happy-path check-then-act already produces today -- closing the race window rather than changing the API contract.
 
 **DI-lifetime regression test:**
