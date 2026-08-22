@@ -88,12 +88,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ProductList's mountedRef.
   const mountedRef = useRef(true);
 
+  // Retro fix (Epic 3, Finding F): this doc comment (see below) claimed
+  // parity with ProductList's stale-response guard, but only the
+  // mountedRef half was actually implemented -- ProductList.fetchProducts
+  // additionally uses a requestIdRef generation counter to reject a stale,
+  // out-of-order response if this effect ever re-runs (e.g. React
+  // StrictMode's dev-only double-invoke). Added here to make the claim
+  // true; mounts exactly once at the app root in production, so this is a
+  // correctness/consistency fix, not a live bug fix.
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
     mountedRef.current = true;
+    const requestId = (requestIdRef.current += 1);
 
     apiFetch<UserDto>('/api/auth/me')
       .then((result) => {
-        if (!mountedRef.current) {
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
           return;
         }
 
@@ -112,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // apiFetch is documented to never throw/reject -- this is a safety
         // net in case that contract is ever violated, so `status` doesn't
         // get stuck on 'checking' forever.
-        if (!mountedRef.current) {
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
           return;
         }
         setUser(null);

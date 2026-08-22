@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '../api/client';
 import type { UserDto } from '../api/types';
@@ -224,6 +224,51 @@ describe('AuthContext', () => {
     await waitFor(() => {
       expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated');
     });
+  });
+
+  // Retro fix (Epic 3, Finding F): the doc comment above the mount effect
+  // claims parity with ProductList's requestIdRef stale-response guard --
+  // this proves it's real, not just asserted. React StrictMode double-
+  // invokes effects in dev, re-running the mount effect once synchronously;
+  // the first invocation's response must be ignored once a second has
+  // superseded it, exactly like ProductList.fetchProducts.
+  it('ignores a stale mount-time /me response if the effect re-runs (StrictMode double-invoke)', async () => {
+    let resolveFirst!: (result: Awaited<ReturnType<typeof apiFetch>>) => void;
+    let callCount = 0;
+    mockedApiFetch.mockImplementation(() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return new Promise((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, data: makeUser() });
+    });
+
+    render(
+      <StrictMode>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </StrictMode>,
+    );
+
+    // The current (second) invocation resolves -> authenticated.
+    await waitFor(() => {
+      expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    });
+    expect(callCount).toBe(2);
+
+    // The stale first invocation now resolves with a 401 -- must not
+    // overwrite the already-settled, correct 'authenticated' status.
+    await act(async () => {
+      resolveFirst({ ok: false, status: 401, problem: null, networkError: false });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('user')).toHaveTextContent('user@example.com');
   });
 
   // Same safety net inside login(): an unexpected rejection must resolve as

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 20:19
+last_updated: 08-22-2026 20:22
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -134,7 +134,7 @@ action_items:
     action: "Add a requestIdRef-style generation-counter guard to AuthContext's mount
       effect, matching ProductList's pattern (Finding F)"
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
   - id: "epic-3-retro-item-9-extract-a-shared-describeapierror-helper"
     epic: 3
