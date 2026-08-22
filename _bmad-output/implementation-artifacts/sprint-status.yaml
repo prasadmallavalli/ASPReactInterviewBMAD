@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 21:20
+last_updated: 08-22-2026 23:00
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -43,7 +43,7 @@ development_status:
   1-4-correlation-id-structured-logging: done
   1-5-deliberate-di-lifetime-bug-reproduce-observe-fix: done
   1-6-unit-tests-for-productservice: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: done
   2-1-user-registration: done
@@ -182,3 +182,26 @@ action_items:
     owner: "Prasadmallavalli"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-08-22.md"
+  - id: "epic-1-retro-item-15-add-categoryservicetests-cs-mirroring-pr"
+    epic: 1
+    action: "Add CategoryServiceTests.cs mirroring ProductServiceTests.cs -- cover
+      DeleteAsync (NotFound/HasProducts/Deleted) and CreateAsync/UpdateAsync happy/not-found
+      paths."
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-08-22.md"
+  - id: "epic-1-retro-item-16-add-an-integration-test-proving-x-correl"
+    epic: 1
+    action: "Add an integration test proving X-Correlation-Id survives a forced 500
+      response via WebApplicationFactory<Program>."
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-08-22.md"
+  - id: "epic-1-retro-item-17-add-a-spec-change-log-entry-to-spec-1-4"
+    epic: 1
+    action: "Add a Spec Change Log entry to spec-1-4-correlation-id-structured-logging.md
+      recording the registration-order and header-write-timing deviations from its
+      frozen Always text."
+    owner: "Prasadmallavalli"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-08-22.md"

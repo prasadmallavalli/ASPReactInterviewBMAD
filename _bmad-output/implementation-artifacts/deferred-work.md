@@ -483,3 +483,17 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/planning-artifacts/architecture/architecture-ASPFullStackBMAD-2026-08-18/ARCHITECTURE-SPINE.md`
   summary: AD-4's rule text (just corrected to list `IPasswordHasher<User>` as a sanctioned Singleton exception) has no cross-reference forward to the new backlog story that would eventually give this rule a real DI-lifetime regression test.
   evidence: Blind-hunter flagged the gap. Real but minor — AD-4's text is about the DI lifetime *rule*, not a running log of test-coverage gaps against it; the regression-test gap is already tracked in the backlog story itself and in ADR-006's Consequences.
+
+## Deferred from: Epic 1 retrospective (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-product-crud.md`
+  summary: `Product.Category` is declared `required` (non-nullable), but `ProductRepository.GetByIdAsync`/`GetAllAsync` fetch via `FindAsync`/`AsNoTracking()` with no `.Include(p => p.Category)` — EF materializes the entity by reflection, bypassing the compile-time `required` check, so `Category` is actually `null` on every fetched instance.
+  evidence: Blind-hunter flagged the gap; verified directly. Zero live trigger today — confirmed `ProductMapper.ToDto()` (the only place a fetched `Product` is read back out) touches only `product.CategoryId`, never `product.Category`; `ToEntity()` (creates) explicitly sets `Category` and is unaffected. Real type-honesty violation, landmine for future code that reads `.Category` assuming non-null.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-correlation-id-structured-logging.md`
+  summary: `CorrelationIdMiddleware` trusts the incoming `X-Correlation-Id` header with no validation — a whitespace-only value, or multiple instances of the header (silently comma-joined by `StringValues.ToString()`), both flow straight into `ILogger.BeginScope` and the echoed response header.
+  evidence: Flagged independently by blind-hunter and edge-case-hunter. Low severity — diagnostic-only impact, no security/data consequence; matches the class of low-priority hardening already deferred elsewhere in this project (e.g. `Jwt:ExpiryMinutes`'s missing upper bound).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-category-crud.md`
+  summary: `CategoryRepository.HasProductsAsync` queries `_context.Products` directly instead of going through `IProductRepository` — one repository reaching into another aggregate's table.
+  evidence: Blind-hunter flagged the gap; verified directly (`CategoryRepository.cs:53-58`). Inconsistent with the repository-per-aggregate boundary AD-2's rationale describes elsewhere, but the alternative (a cross-cutting method added to `IProductRepository` just for this one existence check) isn't obviously better — real but low-value architectural nitpick, not a correctness issue.
