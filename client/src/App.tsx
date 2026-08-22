@@ -13,12 +13,14 @@ import type { ProductDto } from './api/types';
  *
  * Owns `refreshKey` and `editingProduct`. `refreshKey` is bumped by
  * `ProductForm`'s `onSaved` callback on a successful create or edit, and
- * passed as `ProductList`'s `key` prop so a changing key forces a clean
- * remount (re-running its existing fetch effect) -- the change appears with
- * no page reload and zero changes to `ProductList`'s own internals (Story
- * 3.3's Ask-First-approved key-remount trick, in place of a shared
- * state-management library; reused unchanged for edit per Story 3.4's
- * Always boundary).
+ * passed as `ProductList`'s `refreshSignal` prop, which its own mount effect
+ * watches to refetch -- the change appears with no page reload and zero
+ * changes to `ProductList`'s fetch logic itself (Story 3.3's original
+ * design used this same value as a `key` prop instead, forcing a full
+ * remount; retro fix, Epic 3 Finding B, switched to a plain prop because a
+ * remount reset `ProductList`'s own delete-in-flight tracking, silently
+ * dropping an unrelated row's in-flight delete whenever a Create/Edit
+ * success landed at the same time).
  *
  * `editingProduct` tracks which product (if any) is being edited:
  * `ProductList`'s `onEdit` sets it (switching `ProductForm` into edit mode,
@@ -61,7 +63,7 @@ function AuthGate() {
         <ProductForm mode="create" onSaved={handleSaved} />
       )}
       <ProductList
-        key={refreshKey}
+        refreshSignal={refreshKey}
         onEdit={setEditingProduct}
         busyProductId={editingProduct?.id ?? null}
       />

@@ -61,6 +61,18 @@ export interface ProductListProps {
    * standalone (e.g. in isolation in tests) if a caller omits it.
    */
   busyProductId?: number | null;
+  /**
+   * Retro fix (Epic 3, Finding B): App.tsx's refreshKey, previously passed
+   * as this component's `key` prop to force a full remount on every
+   * Create/Edit success. A remount reset `deletingIdsRef`/`deletingIds`,
+   * silently dropping an unrelated row's own in-flight delete: the DELETE
+   * request still completed server-side, but the *new* instance had no
+   * memory of it, so that row reappeared fully interactive (Delete
+   * re-enabled) until some unrelated future refresh. Passed as a plain prop
+   * instead and watched by the mount effect below -- refetches without
+   * remounting, so `deletingIdsRef`/`deletingIds` survive across it.
+   */
+  refreshSignal?: number;
 }
 
 /**
@@ -69,7 +81,7 @@ export interface ProductListProps {
  * error (with Retry), empty-catalog, or populated-list states per this
  * story's I/O matrix. Mounted as the app's root view.
  */
-export function ProductList({ onEdit, busyProductId }: ProductListProps) {
+export function ProductList({ onEdit, busyProductId, refreshSignal }: ProductListProps) {
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   // True whenever a fetch (initial mount or a Retry click) is in flight --
   // drives the Retry button's disabled state and guards against re-entrant
@@ -146,13 +158,18 @@ export function ProductList({ onEdit, busyProductId }: ProductListProps) {
   // Mount-time fetch: isFetching is already initialized to `true`, so no
   // reset is needed here (avoids a synchronous setState-in-effect call
   // flagged by oxlint) -- only Retry needs to flip it back on explicitly.
+  // Retro fix (Finding B): also depends on `refreshSignal` -- App.tsx bumps
+  // it on every Create/Edit success, re-running this effect to refetch
+  // without unmounting. `deletingIdsRef`/`deletingIds` live outside this
+  // effect entirely, so they're untouched by a refreshSignal-triggered
+  // refetch, unlike the full remount this replaced.
   useEffect(() => {
     mountedRef.current = true;
     fetchProducts();
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchProducts]);
+  }, [fetchProducts, refreshSignal]);
 
   const handleRetry = useCallback(() => {
     if (isFetching) {

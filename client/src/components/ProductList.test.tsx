@@ -460,5 +460,73 @@ describe('ProductList', () => {
       expect(screen.getByText('Widget')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^delete$/i })).not.toBeDisabled();
     });
+
+    // Retro fix (Epic 3, Finding B): App.tsx used to pass this value as
+    // ProductList's `key`, forcing a full remount (and resetting
+    // deletingIds) on every unrelated Create/Edit success. A remount mid-
+    // delete would silently drop this row's own pending-delete state, so it
+    // reappeared fully interactive even though its DELETE was still
+    // outstanding server-side. `refreshSignal` is a plain prop instead: the
+    // same persistent instance (no `key` change, mirroring how App.tsx
+    // actually re-renders it) refetches without unmounting, so deletingIds
+    // survives.
+    it('keeps an in-flight delete disabled across a refreshSignal-triggered refetch (no remount)', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const products = [
+        makeProduct({ id: 1, name: 'Widget' }),
+        makeProduct({ id: 2, name: 'Gadget' }),
+      ];
+
+      let resolveDelete: (value: ApiResult<unknown>) => void = () => {};
+      let deleted = false;
+      mockedApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+        const method = ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase();
+        if (path === '/api/products/1' && method === 'DELETE') {
+          return new Promise<ApiResult<unknown>>((resolve) => {
+            resolveDelete = (value) => {
+              deleted = true;
+              resolve(value);
+            };
+          });
+        }
+        const data = deleted ? products.filter((product) => product.id !== 1) : products;
+        return Promise.resolve({ ok: true, status: 200, data });
+      });
+
+      const { rerender } = render(<ProductList refreshSignal={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Widget')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getAllByRole('button', { name: /^delete$/i })[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /deleting/i })).toBeDisabled();
+      });
+
+      // Simulate App.tsx bumping refreshKey after an unrelated Create/Edit
+      // success -- same persistent instance, no `key` change.
+      rerender(<ProductList refreshSignal={1} />);
+
+      // The refetch re-resolves both rows unchanged; Widget's delete must
+      // still show as in flight, not reset to interactive.
+      await waitFor(() => {
+        expect(screen.getByText('Gadget')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('button', { name: /deleting/i })).toBeDisabled();
+
+      // The original DELETE now resolves -- still wired to the same request,
+      // proving deletingIdsRef truly survived the refetch rather than a new
+      // instance coincidentally reaching the same visual state.
+      resolveDelete({ ok: true, status: 204, data: undefined });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /deleting/i })).not.toBeInTheDocument();
+      });
+      expect(screen.queryByText('Widget')).not.toBeInTheDocument();
+      expect(screen.getByText('Gadget')).toBeInTheDocument();
+    });
   });
 });
