@@ -21,6 +21,7 @@ namespace Application.Tests.Integration;
 /// local SQL Server from docker-compose.yml to be reachable, matching how
 /// GetAll() behaves in the real running app.
 /// </summary>
+[Collection("WebApplicationFactory")]
 public class MutationEndpointsAuthTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;

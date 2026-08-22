@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 17:15
+last_updated: 08-22-2026 20:45
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -45,10 +45,10 @@ development_status:
   1-6-unit-tests-for-productservice: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
-  2-1-user-registration: review
-  2-2-user-login-jwt-via-httponly-cookie: review
-  2-3-protect-mutation-endpoints-scope-cors: review
+  epic-2: done
+  2-1-user-registration: done
+  2-2-user-login-jwt-via-httponly-cookie: done
+  2-3-protect-mutation-endpoints-scope-cors: done
   epic-2-retrospective: optional
 
   epic-3: done

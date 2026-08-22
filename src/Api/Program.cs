@@ -140,14 +140,19 @@ if (jwtOptions.ExpiryMinutes <= 0)
 
 // AD-5: the JWT travels only as the httpOnly access_token cookie set by
 // AuthController.Login, never as an Authorization header — OnMessageReceived
-// reads it from there instead of the default header-based extraction.
+// reads it from there instead of the default header-based extraction, and
+// explicitly short-circuits (NoResult()) when the cookie is absent so
+// JwtBearerHandler's own Authorization-header fallback never runs either
+// (code-review finding, 2026-08-22: the fallback was previously still live).
 // MapInboundClaims = false keeps JwtRegisteredClaimNames.Sub/.Email as the
 // literal claim types on ClaimsPrincipal, matching what JwtTokenGenerator
 // mints and what AuthController.Me reads back, instead of ASP.NET Core's
 // default remapping to long http://schemas... ClaimTypes URIs.
-// ValidateLifetime = true is set explicitly (not just left at its default)
-// so FR-4's expiry enforcement is a deliberate, visible decision, not an
-// accident of the default.
+// ValidateLifetime = true is set explicitly (not just left at its default);
+// ClockSkew = TimeSpan.Zero (code-review finding, 2026-08-22) removes the
+// library's default 5-minute leeway so FR-4's "expired token is rejected,
+// not silently accepted" holds exactly at the token's own exp claim, not up
+// to 5 minutes past it.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -160,7 +165,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtOptions.Audience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-            ValidateLifetime = true
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
         options.Events = new JwtBearerEvents
         {
@@ -170,8 +176,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 {
                     context.Token = accessToken;
                 }
+                else
+                {
+                    context.NoResult();
+                }
 
                 return Task.CompletedTask;
+            },
+            // Default challenge writes a bodyless 401 — replaced with the
+            // same ProblemDetails envelope every other 4xx/5xx in this API
+            // uses (Epic 1 requirement; epic-2-context.md restates it for
+            // auth errors specifically). Code-review finding, 2026-08-22,
+            // confirmed empirically via curl: the default response had
+            // content-length: 0.
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/problem+json";
+
+                var problemDetailsService = context.HttpContext.RequestServices
+                    .GetRequiredService<IProblemDetailsService>();
+                await problemDetailsService.WriteAsync(new ProblemDetailsContext
+                {
+                    HttpContext = context.HttpContext,
+                    ProblemDetails = new ProblemDetails
+                    {
+                        Status = StatusCodes.Status401Unauthorized,
+                        Title = "Unauthorized"
+                    }
+                });
             }
         };
     });

@@ -33,6 +33,7 @@ namespace Application.Tests.Integration;
 /// design, since that design makes the final "mutation with correct header"
 /// assertion below fail with 400 instead of succeeding.
 /// </summary>
+[Collection("WebApplicationFactory")]
 public class CsrfProtectionTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -59,7 +60,9 @@ public class CsrfProtectionTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task RegisterLoginMeThenMutate_NoCsrfHeader400_CorrectCsrfHeaderSucceeds()
     {
         var email = $"csrf-flow-{Guid.NewGuid():N}@example.com";
-        const string password = "correct-horse-battery-staple";
+        // 12 chars: fits the [StringLength(12, MinimumLength = 8)] bound
+        // added to UserRegistrationRequestDto.Password (code review, 2026-08-22).
+        const string password = "correcthorse";
         var categoryName = $"CSRF Flow Test Category {Guid.NewGuid():N}";
         var createdCategoryId = (int?)null;
 

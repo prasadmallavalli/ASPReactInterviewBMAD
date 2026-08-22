@@ -51,6 +51,11 @@ public class UserService : IUserService
             return (UserRegistrationResult.EmailAlreadyExists, null);
         }
 
+        // PasswordHash starts empty because IPasswordHasher<User>.HashPassword
+        // takes the User instance as its first argument (some hashers use
+        // fields off it), so the entity must exist before hashing can run;
+        // it's overwritten with the real hash immediately below and never
+        // persisted or read in between.
         var user = new User
         {
             Email = normalizedEmail,

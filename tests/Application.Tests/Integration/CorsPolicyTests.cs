@@ -20,6 +20,7 @@ namespace Application.Tests.Integration;
 /// supplies the Cors:FrontendOrigin value (http://localhost:5173) Program.cs
 /// requires at startup.
 /// </summary>
+[Collection("WebApplicationFactory")]
 public class CorsPolicyTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private const string ConfiguredFrontendOrigin = "http://localhost:5173";

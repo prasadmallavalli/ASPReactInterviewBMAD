@@ -357,3 +357,9 @@ Append-only ledger of real, non-blocking findings surfaced during story review. 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-deliberate-di-lifetime-bug-reproduce-observe-fix.md`
   summary: `story-1-5-di-bug-log-excerpt.md` cites the DI-lifetime fix at "`src/Api/Program.cs` line 42" — the actual `AddScoped<IProductRepository, ProductRepository>()` registration is now at line 85, since later stories added code above it in `Program.cs`. No document that links this log excerpt (ADR-006, the code review checklist, the mentoring note) flags that the line number has drifted.
   evidence: Flagged by the edge-case-hunter lens during Epic 4's retrospective, re-verified against the current `src/Api/Program.cs`. Pre-existing since Story 1.5 (Epic 1), not introduced by Epic 4 — the log excerpt is a historical record that shouldn't be edited to "correct" a line number that was accurate at the time it was written; a caveat note at the citing end is the honest fix, not attempted here since it touches three separate Epic 4 documents for a low-impact drift.
+
+## Deferred from: code review of spec-2-2-user-login-jwt-via-httponly-cookie (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-user-login-jwt-via-httponly-cookie.md`
+  summary: `SameSite=Strict` on the `access_token` cookie may not survive a genuinely cross-domain (not just cross-port) frontend/API deployment — `SameSite=Strict` cookies are never sent on requests where the top-level site differs, which is a stricter bar than just "different origin."
+  evidence: Blind-hunter flagged the gap during code review. Works correctly today because the frontend and API are same-site (`localhost` at different ports, per the CORS config); no AC or deployment target currently requires a cross-domain split. Worth revisiting only if frontend and API ever land on genuinely different registrable domains in a real deployment.

@@ -208,4 +208,53 @@ public class AuthControllerTests
         Assert.Contains("samesite=strict", xsrfCookie, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("httponly", xsrfCookie, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Code-review finding (2026-08-22): Me()'s defensive
+    /// int.TryParse(sub, ...) || email is null guard had zero test coverage
+    /// — every prior test supplied a fully-valid claim set. Non-numeric Sub
+    /// is one of the two ways that guard can trip (missing Email is the
+    /// other); this proves the guard actually rejects rather than silently
+    /// producing a garbage UserDto.
+    /// </summary>
+    [Fact]
+    public void Me_NonNumericSubClaim_ReturnsUnauthorized()
+    {
+        var userService = new Mock<IUserService>();
+        var controller = CreateSut(userService);
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, "not-a-number"),
+            new(JwtRegisteredClaimNames.Email, "foo@x.com")
+        };
+        controller.ControllerContext.HttpContext.User =
+            new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "TestAuth"));
+
+        var actionResult = controller.Me();
+
+        Assert.IsType<UnauthorizedResult>(actionResult.Result);
+        Assert.False(controller.Response.Headers.ContainsKey("Set-Cookie"));
+    }
+
+    /// <summary>
+    /// The other way Me()'s guard can trip: Sub present and numeric, but
+    /// Email missing entirely.
+    /// </summary>
+    [Fact]
+    public void Me_MissingEmailClaim_ReturnsUnauthorized()
+    {
+        var userService = new Mock<IUserService>();
+        var controller = CreateSut(userService);
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, "1")
+        };
+        controller.ControllerContext.HttpContext.User =
+            new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "TestAuth"));
+
+        var actionResult = controller.Me();
+
+        Assert.IsType<UnauthorizedResult>(actionResult.Result);
+        Assert.False(controller.Response.Headers.ContainsKey("Set-Cookie"));
+    }
 }

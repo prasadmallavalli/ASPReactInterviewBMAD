@@ -33,6 +33,7 @@ namespace Application.Tests.Integration;
 /// adding it here would require a test-only DB substitution strategy, which
 /// is a design decision beyond this patch.
 /// </summary>
+[Collection("WebApplicationFactory")]
 public class AuthPipelineTests : IClassFixture<WebApplicationFactory<Program>>
 {
     // Mirrors appsettings.Development.json's "Jwt" section exactly, so a

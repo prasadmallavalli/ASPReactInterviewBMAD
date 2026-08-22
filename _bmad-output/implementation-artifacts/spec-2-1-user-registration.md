@@ -25,22 +25,24 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.m
 - Success returns 201 with `{ id, email }` only — password/hash never appear in any response DTO.
 - Controller depends only on `IUserService` (AD-1); `UserService` depends only on `IUnitOfWork` (AD-2) — no EF Core types in Application.
 - Validation is Data Annotations only on the request DTO (AD-8): `[Required, EmailAddress]` on Email, `[Required]` on Password — malformed payloads 400 automatically via `[ApiController]`.
+- **(Renegotiated 2026-08-22, code review of story 2.1)** `Password` length is bounded to 8-12 characters inclusive via `[StringLength(12, MinimumLength = 8)]` — a human decision resolving a code-review finding (unbounded input to `IPasswordHasher<User>.HashPassword`). No other complexity rule (character classes, etc.) is enforced.
 
 **Ask First:** none — this follows established Epic 1 conventions with no new architectural decisions.
 
 **Never:**
 - Do not attempt to close the check-then-act duplicate-email race (email-exists check, then insert) by catching `DbUpdateException` in `UserService` — that requires Application to depend on EF Core, forbidden by AD-2. Same accepted, already-deferred pattern as Category/Product in Epic 1; the unique index still guarantees no bad data lands, worst case is a 500 instead of a clean 409 on the race window.
 - Do not build login, JWT issuance, or cookie handling here — that is Story 2.2.
-- Do not invent a password-strength policy (length/complexity rules) — not in this story's acceptance criteria; only presence is validated.
+- Do not invent a password-strength policy (character-class/complexity rules) — not in this story's acceptance criteria. (The 8-12 length bound above is a renegotiated exception to this boundary, not a complexity rule.)
 
 ## I/O & Edge-Case Matrix
 
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
-| Happy path | Valid, unused email + non-empty password | 201, body `{ id, email }`, `PasswordHash` stored, never plaintext | N/A |
+| Happy path | Valid, unused email + password 8-12 chars | 201, body `{ id, email }`, `PasswordHash` stored, never plaintext | N/A |
 | Duplicate email | Email already registered (case-insensitive match) | 409 `ProblemDetails`, no row written | `Problem(title: "Email already registered", statusCode: 409)` |
 | Missing password | Email present, `password` omitted/empty | 400 `ProblemDetails` (model-state) | Automatic via `[ApiController]` + `[Required]` |
 | Malformed email | `email: "not-an-email"` | 400 `ProblemDetails` (model-state) | Automatic via `[ApiController]` + `[EmailAddress]` |
+| Out-of-range password length | `password` shorter than 8 or longer than 12 chars | 400 `ProblemDetails` (model-state) | Automatic via `[ApiController]` + `[StringLength(12, MinimumLength = 8)]` |
 | Case-varied duplicate | `Foo@X.com` registered, then `foo@x.com` submitted | 409, treated as the same email | Normalization before uniqueness check |
 
 </frozen-after-approval>
@@ -86,6 +88,13 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-2-context.m
 - Given a valid, unused email + password, when POSTed to `/api/auth/register`, then 201 is returned and the password is stored hashed, never in plaintext
 - Given an email already registered (including a case-varied match), when POSTed, then a 409 is returned, not a 500
 - Given an invalid payload (missing password, malformed email), when POSTed, then a 400 with `ProblemDetails` is returned
+
+### Review Findings
+
+- [x] [Review][Patch] Password field has no length bounds — resolved: human decision (2026-08-22) renegotiates this spec's frozen Never boundary ("no password-strength policy") to require `Password` length between 8 and 12 characters inclusive [src/Application/DTOs/UserRegistrationRequestDto.cs]. Originally flagged as a max-length DoS gap by blind-hunter and edge-case-hunter; user's resolution also closes the previously-deferred "no minimum length" gap logged in `deferred-work.md`. Applied: `[StringLength(12, MinimumLength = 8)]` added; spec's Always/Never/I-O-matrix updated to match; `CsrfProtectionTests.cs`'s 28-char password literal shortened to fit.
+- [x] [Review][Patch] No test proves the DB-level unique index on Email actually enforces uniqueness [tests/Application.Tests/Integration/CsrfProtectionTests.cs] — All `RegisterAsync` tests mock `IUserRepository`; the only real-DB integration test registers exactly one email and never submits a duplicate. Verification-gap demonstrated that dropping `.IsUnique()` from `AppDbContext` or the migration would not fail any existing test — the exact mechanism this spec calls "the last line of defense" against the accepted check-then-act race is itself unverified. Applied: added `RegistrationTests.DirectDbInsert_DuplicateNormalizedEmail_ThrowsDueToUniqueIndex`, inserting the same normalized email twice directly against a real `AppDbContext` and asserting `DbUpdateException`.
+- [x] [Review][Patch] No test exercises the automatic 400 response for a malformed registration payload [tests/Application.Tests/Controllers/AuthControllerTests.cs] — the design relies entirely on `[ApiController]`'s Data Annotation validation for missing password / malformed email, but nothing in the suite verifies it actually fires. Applied: added `RegistrationTests.Register_MalformedPayload_ReturnsBadRequest`, a `[Theory]` covering missing password, malformed email, and both new length-bound edges, run through the real HTTP pipeline.
+- [x] [Review][Patch] Two-step `User` construction has no explanatory comment [src/Application/Services/UserService.cs:57] — `PasswordHash` is set to `string.Empty` then immediately reassigned after `HashPassword` is called; a one-line comment (or restructuring) would remove the "is this a bug" hesitation on read. Applied: clarifying comment added.
 
 ## Spec Change Log
 
