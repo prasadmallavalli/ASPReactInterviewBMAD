@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 20:25
+last_updated: 08-22-2026 21:13
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -148,7 +148,7 @@ action_items:
     action: "Add focus/scrollIntoView when entering edit mode on a long product list
       (Finding K)"
     owner: "Prasadmallavalli"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-20.md"
   - id: "epic-3-retro-item-11-update-epics-md-to-formally-record-the-l"
     epic: 3

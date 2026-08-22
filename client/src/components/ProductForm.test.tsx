@@ -325,6 +325,32 @@ describe('ProductForm (edit mode)', () => {
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
+  // Retro fix (Epic 3, Finding K): on a long product list, ProductForm
+  // renders above ProductList -- clicking Edit on a row far down would
+  // otherwise leave the now-populated form off-screen with no visible
+  // indication anything happened. Switching the same persistent instance
+  // into edit mode (the real sequence App.tsx produces, no key/remount)
+  // moves focus to the form container. Does NOT fire on a fresh mount
+  // directly in edit mode -- only on a genuine create->edit/edit->edit
+  // transition, which is the actual "clicked Edit" scenario.
+  it('moves focus to the form container when switching into edit mode', async () => {
+    const product = makeProduct({ id: 5, name: 'Existing Widget', price: 12.5, categoryId: 2 });
+    mockedApiFetch.mockResolvedValueOnce({ ok: true, status: 200, data: categories });
+    const { container, rerender } = render(<ProductForm mode="create" onSaved={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/category/i)).not.toBeDisabled();
+    });
+
+    rerender(
+      <ProductForm mode="edit" initialProduct={product} onSaved={vi.fn()} onCancel={vi.fn()} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toHaveValue('Existing Widget');
+    });
+    expect(document.activeElement).toBe(container.querySelector('.product-form'));
+  });
+
   // Retro fix (Epic 3, Finding C): in edit mode, a failed categories fetch
   // must still offer a way out -- otherwise the user is stuck mid-edit with
   // no way back to the list short of reloading the page.

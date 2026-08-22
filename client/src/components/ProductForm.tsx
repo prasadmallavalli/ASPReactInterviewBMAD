@@ -82,6 +82,15 @@ export function ProductForm(props: ProductFormProps) {
   // ProductList's/AuthContext's mountedRef.
   const mountedRef = useRef(true);
 
+  // Retro fix (Epic 3, Finding K): on a long product list, clicking Edit on
+  // a row far down leaves this form -- which renders above ProductList --
+  // off-screen, with no indication anything happened. `tabIndex={-1}` makes
+  // the container programmatically focusable without adding it to the tab
+  // order. Attached to all three render branches below (main form and both
+  // categories-error/-empty early returns) so entering edit mode scrolls
+  // and focuses it regardless of which one is showing.
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Code review fix: the categories-fetch effect below has an empty
   // dependency array (must only ever run once per instance -- see its own
   // comment), so its `.then` callback closes over whatever `mode` was on the
@@ -170,6 +179,11 @@ export function ProductForm(props: ProductFormProps) {
       setName(initialProduct.name);
       setPrice(String(initialProduct.price));
       setCategoryId(String(initialProduct.categoryId));
+      // Retro fix (Finding K): scroll this form into view and move focus to
+      // it -- optional-chained on the method itself since jsdom (this
+      // project's test environment) doesn't implement scrollIntoView at all.
+      containerRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+      containerRef.current?.focus?.({ preventScroll: true });
     } else {
       setName('');
       setPrice('');
@@ -312,7 +326,7 @@ export function ProductForm(props: ProductFormProps) {
 
   if (categoriesState.status === 'error') {
     return (
-      <div className={formClassName}>
+      <div className={formClassName} ref={containerRef} tabIndex={-1}>
         <h2>{heading}</h2>
         <p className={errorClassName} role="alert">
           Could not load categories -- reload the page to try again.
@@ -334,7 +348,7 @@ export function ProductForm(props: ProductFormProps) {
     // never actually submittable, with no explanation. Treat it like the
     // fetch-failure case instead: disabled form, visible reason.
     return (
-      <div className={formClassName}>
+      <div className={formClassName} ref={containerRef} tabIndex={-1}>
         <h2>{heading}</h2>
         <p className={errorClassName} role="alert">
           No categories exist yet -- create one first before adding a product.
@@ -354,7 +368,7 @@ export function ProductForm(props: ProductFormProps) {
   const disabled = isSubmitting || categoriesLoading;
 
   return (
-    <div className={formClassName}>
+    <div className={formClassName} ref={containerRef} tabIndex={-1}>
       <h2>{heading}</h2>
       <form onSubmit={handleSubmit}>
         <div className="product-form-field">
