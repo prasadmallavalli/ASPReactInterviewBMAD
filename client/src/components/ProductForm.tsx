@@ -336,6 +336,13 @@ export function ProductForm(props: ProductFormProps) {
         <p className={errorClassName} role="alert">
           Could not load categories -- reload the page to try again.
         </p>
+        {mode === 'edit' && (
+          <div className="product-form-actions">
+            <button type="button" className="product-form-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -351,6 +358,13 @@ export function ProductForm(props: ProductFormProps) {
         <p className={errorClassName} role="alert">
           No categories exist yet -- create one first before adding a product.
         </p>
+        {mode === 'edit' && (
+          <div className="product-form-actions">
+            <button type="button" className="product-form-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     );
   }

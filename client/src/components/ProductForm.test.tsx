@@ -325,6 +325,51 @@ describe('ProductForm (edit mode)', () => {
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
+  // Retro fix (Epic 3, Finding C): in edit mode, a failed categories fetch
+  // must still offer a way out -- otherwise the user is stuck mid-edit with
+  // no way back to the list short of reloading the page.
+  it('shows a Cancel button when categories fail to load in edit mode', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    mockedApiFetch.mockResolvedValueOnce({
+      ok: false,
+      status: null,
+      problem: null,
+      networkError: true,
+    });
+    const product = makeProduct({ id: 5, name: 'Existing Widget', price: 12.5, categoryId: 2 });
+
+    render(
+      <ProductForm mode="edit" initialProduct={product} onSaved={vi.fn()} onCancel={onCancel} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1); // categories only -- Cancel issued no API call.
+  });
+
+  // Retro fix (Epic 3, Finding C): same gap for the zero-categories case.
+  it('shows a Cancel button when the category list is empty in edit mode', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    mockedApiFetch.mockResolvedValueOnce({ ok: true, status: 200, data: [] });
+    const product = makeProduct({ id: 5, name: 'Existing Widget', price: 12.5, categoryId: 2 });
+
+    render(
+      <ProductForm mode="edit" initialProduct={product} onSaved={vi.fn()} onCancel={onCancel} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/no categories exist/i);
+    });
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1); // categories only -- Cancel issued no API call.
+  });
+
   // I/O matrix: Cancel clicked in edit mode -> returns to create mode; no API call.
   it('calls onCancel and issues no API call when Cancel is clicked', async () => {
     const user = userEvent.setup();
