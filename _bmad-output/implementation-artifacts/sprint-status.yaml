@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-18-2026 00:00
-last_updated: 08-22-2026 16:45
+last_updated: 08-22-2026 17:15
 project: ASPFullStackBMAD
 project_key: NOKEY
 tracking_system: file-system
@@ -74,11 +74,11 @@ development_status:
   5-5-feedback-framework-example-sbi: done
   epic-5-retrospective: done
 
-  epic-6: in-progress
-  6-1-star-stories: review
-  6-2-3-minute-cold-capstone-walkthrough: review
-  6-3-30-minute-deep-dive-anticipated-follow-ups: review
-  epic-6-retrospective: optional
+  epic-6: done
+  6-1-star-stories: done
+  6-2-3-minute-cold-capstone-walkthrough: done
+  6-3-30-minute-deep-dive-anticipated-follow-ups: done
+  epic-6-retrospective: done
 action_items:
   - id: "epic-3-retro-item-1-add-cancel-button-to-productform-s-categ"
     epic: 3

@@ -2,7 +2,7 @@
 
 Status: Active · Date: 2026-08-22 · Author: Prasadmallavalli · Satisfies: Story 6.1 (FR-12's STAR-story requirement)
 
-Four stories (Situation/Task/Action/Result), each sourced from one specific Epic 4 or 5 artifact — a tradeoff decision, the postmortem, a stakeholder-communication moment, and a mentoring moment, the four categories `epics.md`'s Story 6.1 AC names exactly. Each is written to be said out loud, not read — contractions, short sentences, no code-identifier walls a mouth would trip over. **Verification:** word-counted below (excluding the Cue/Source line and the STAR labels) against 145 words/minute, a middle-of-the-road spoken pace; every story lands between 1.6 and 1.8 minutes, with real but not generous headroom under the 2-minute cap — see the Word-count verification table at the end for the exact numbers and how they were checked.
+Four stories (Situation/Task/Action/Result), each sourced from one specific Epic 4 or 5 artifact — a tradeoff decision, the postmortem, a stakeholder-communication moment, and a mentoring moment, the four categories `epics.md`'s Story 6.1 AC names exactly. Each is written to be said out loud, not read — contractions, short sentences, no code-identifier walls a mouth would trip over. **Verification:** word-counted below (excluding the section heading, the Cue/Source line, and the STAR labels) against 145 words/minute, a middle-of-the-road spoken pace; every story lands between 1.5 and 1.7 minutes, with real headroom under the 2-minute cap — see the Word-count verification table at the end for the exact numbers and how they were checked.
 
 **How this connects to the rest of Epic 6:** these four source artifacts are the same ones Story 6.3's anticipated-follow-up-question set will draw on — expect direct overlap, not coincidence. The 3-minute cold capstone (Story 6.2) isn't these four stories back to back; it's a separate, shorter narrative these stories zoom into when an interviewer asks a specific "tell me about a time" question rather than "walk me through the project."
 
@@ -56,13 +56,13 @@ Four stories (Situation/Task/Action/Result), each sourced from one specific Epic
 
 ## Word-count verification
 
-Counted programmatically (word count of each story's body, excluding the Cue/Source line and the STAR labels themselves) — not eyeballed, per this project's own verify-don't-assert convention:
+Counted programmatically (word count of each story's body, excluding the section heading itself, the Cue/Source line, and the STAR labels) — not eyeballed, per this project's own verify-don't-assert convention. **Correction, added during Epic 6's retrospective:** the first version of this table (236/262/235/231) had a real bug in the counting script — it failed to exclude each story's markdown section heading (the title and track tag), which nobody actually says out loud, inflating every count by roughly a title's worth of words. The numbers below are the corrected count, verified by re-running the fix and cross-checking it produces the same figures an independent review pass found by inspection:
 
-| Story | Words (excl. labels/Cue/Source) | Est. time @ 145 wpm |
+| Story | Words (excl. heading/labels/Cue/Source) | Est. time @ 145 wpm |
 |---|---|---|
-| 1 — httpOnly cookies | 236 | 1.63 min |
-| 2 — the DI bug | 262 | 1.81 min |
-| 3 — the roadmap tradeoff | 235 | 1.62 min |
-| 4 — the mentoring moment | 231 | 1.59 min |
+| 1 — httpOnly cookies | 224 | 1.54 min |
+| 2 — the DI bug | 249 | 1.72 min |
+| 3 — the roadmap tradeoff | 220 | 1.52 min |
+| 4 — the mentoring moment | 218 | 1.50 min |
 
 All four sit under the 2-minute cap, though with the least margin on story 2 — it carries the most required content (the up-front honesty disclosure plus two prepared fallbacks) and is the one worth the most rehearsal before relying on it live. The first draft of story 2, before trimming during review, measured 297 words (2.05 minutes) — over the cap; this table reflects the trimmed version actually delivered above, not the original estimate.
